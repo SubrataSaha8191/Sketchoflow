@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useId } from 'react';
 import { gsap } from 'gsap';
 
 export interface BentoCardProps {
@@ -112,6 +112,7 @@ const ParticleCard: React.FC<{
   enableTilt?: boolean;
   clickEffect?: boolean;
   enableMagnetism?: boolean;
+  enableBorderGlow?: boolean;
 }> = ({
   children,
   className = '',
@@ -121,7 +122,8 @@ const ParticleCard: React.FC<{
   glowColor = DEFAULT_GLOW_COLOR,
   enableTilt = true,
   clickEffect = false,
-  enableMagnetism = false
+  enableMagnetism = false,
+  enableBorderGlow = true
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const particlesRef = useRef<HTMLDivElement[]>([]);
@@ -244,13 +246,19 @@ const ParticleCard: React.FC<{
     };
 
     const handleMouseMove = (e: MouseEvent) => {
-      if (!enableTilt && !enableMagnetism) return;
-
       const rect = element.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       const centerX = rect.width / 2;
       const centerY = rect.height / 2;
+
+      // Always update glow position for border glow effect
+      if (enableBorderGlow) {
+        const glowX = (x / rect.width) * 100;
+        const glowY = (y / rect.height) * 100;
+        element.style.setProperty('--glow-x', `${glowX}%`);
+        element.style.setProperty('--glow-y', `${glowY}%`);
+      }
 
       if (enableTilt) {
         const rotateX = ((y - centerY) / centerY) * -10;
@@ -336,16 +344,66 @@ const ParticleCard: React.FC<{
       element.removeEventListener('click', handleClick);
       clearAllParticles();
     };
-  }, [animateParticles, clearAllParticles, disableAnimations, enableTilt, enableMagnetism, clickEffect, glowColor]);
+  }, [animateParticles, clearAllParticles, disableAnimations, enableTilt, enableMagnetism, clickEffect, glowColor, enableBorderGlow]);
+
+  // Use React's useId for SSR-safe unique IDs
+  const reactId = useId();
+  const uniqueId = `card${reactId.replace(/:/g, '')}`;
 
   return (
-    <div
-      ref={cardRef}
-      className={`${className} relative overflow-hidden`}
-      style={{ ...style, position: 'relative', overflow: 'hidden' }}
-    >
-      {children}
-    </div>
+    <>
+      <style>
+        {`
+          #${uniqueId}.card--border-glow::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            padding: 4px;
+            background: radial-gradient(300px circle at var(--glow-x) var(--glow-y),
+                rgba(${glowColor}, 1) 0%,
+                rgba(${glowColor}, 0.6) 25%,
+                rgba(${glowColor}, 0.3) 45%,
+                transparent 70%);
+            border-radius: inherit;
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask-composite: subtract;
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 10;
+            opacity: 0;
+          }
+          
+          #${uniqueId}.card--border-glow:hover::after {
+            opacity: 1;
+          }
+          
+          #${uniqueId}.card--border-glow:hover {
+            box-shadow: 
+              0 4px 25px rgba(${glowColor}, 0.35),
+              0 0 50px rgba(${glowColor}, 0.2),
+              inset 0 0 30px rgba(${glowColor}, 0.05);
+          }
+        `}
+      </style>
+      <div
+        id={uniqueId}
+        ref={cardRef}
+        className={`card ${enableBorderGlow ? 'card--border-glow' : ''} ${className} relative overflow-hidden`}
+        style={{ 
+          ...style, 
+          position: 'relative', 
+          overflow: 'hidden',
+          '--glow-x': '50%',
+          '--glow-y': '50%',
+          '--glow-intensity': '0',
+          '--glow-radius': '300px'
+        } as React.CSSProperties}
+      >
+        {children}
+      </div>
+    </>
   );
 };
 
@@ -854,3 +912,71 @@ const MagicBento: React.FC<BentoProps> = ({
 };
 
 export default MagicBento;
+export { ParticleCard, GlobalSpotlight };
+
+// Standalone CSS for using ParticleCard outside of MagicBento
+export const MagicBentoStyles: React.FC<{ glowColor?: string }> = ({ glowColor = DEFAULT_GLOW_COLOR }) => (
+  <style>
+    {`
+      .card {
+        --glow-x: 50%;
+        --glow-y: 50%;
+        --glow-intensity: 0;
+        --glow-radius: 300px;
+      }
+      
+      .card--border-glow {
+        position: relative;
+      }
+      
+      .card--border-glow::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        padding: 4px;
+        background: radial-gradient(var(--glow-radius) circle at var(--glow-x) var(--glow-y),
+            rgba(${glowColor}, calc(var(--glow-intensity) * 1)) 0%,
+            rgba(${glowColor}, calc(var(--glow-intensity) * 0.6)) 25%,
+            rgba(${glowColor}, calc(var(--glow-intensity) * 0.3)) 45%,
+            transparent 70%);
+        border-radius: inherit;
+        mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        mask-composite: subtract;
+        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        pointer-events: none;
+        transition: opacity 0.3s ease, box-shadow 0.3s ease;
+        z-index: 10;
+        opacity: 0;
+      }
+      
+      .card--border-glow:hover::after {
+        opacity: 1;
+        --glow-intensity: 1;
+      }
+      
+      .card--border-glow:hover {
+        box-shadow: 
+          0 4px 25px rgba(${glowColor}, 0.3),
+          0 0 40px rgba(${glowColor}, 0.15),
+          inset 0 0 20px rgba(${glowColor}, 0.05);
+      }
+      
+      .particle::before {
+        content: '';
+        position: absolute;
+        top: -2px;
+        left: -2px;
+        right: -2px;
+        bottom: -2px;
+        background: rgba(${glowColor}, 0.2);
+        border-radius: 50%;
+        z-index: -1;
+      }
+      
+      .particle-container:hover {
+        box-shadow: 0 4px 20px rgba(46, 24, 78, 0.2), 0 0 30px rgba(${glowColor}, 0.2);
+      }
+    `}
+  </style>
+);

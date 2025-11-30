@@ -1,8 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
 import { useTheme, ColorTheme } from '@/context/ThemeContext';
+import AuthPopup from './AuthPopup';
 
 const colorThemes: Record<ColorTheme, { gradient: string; text: string; glow: string }> = {
   purple: {
@@ -35,16 +36,44 @@ const colorThemes: Record<ColorTheme, { gradient: string; text: string; glow: st
 const AuthButtons = () => {
   const { buttonTheme } = useTheme();
   const theme = colorThemes[buttonTheme];
+  const [isPopupOpen, setIsPopupOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+
+  const handleSignIn = () => {
+    setAuthMode('signin');
+    setIsPopupOpen(true);
+  };
+
+  const handleSignUp = () => {
+    setAuthMode('signup');
+    setIsPopupOpen(true);
+  };
+
+  const handleClosePopup = () => {
+    setIsPopupOpen(false);
+  };
+
+  const handleToggleMode = () => {
+    setAuthMode(authMode === 'signin' ? 'signup' : 'signin');
+  };
 
   return (
-    <StyledWrapper $gradient={theme.gradient} $text={theme.text} $glow={theme.glow}>
-      <button className="Btn">
-        <span className="text">Sign In</span>
-      </button>
-      <button className="Btn">
-        <span className="text">Sign Up</span>
-      </button>
-    </StyledWrapper>
+    <>
+      <StyledWrapper $gradient={theme.gradient} $text={theme.text} $glow={theme.glow}>
+        <button className="Btn" onClick={handleSignIn}>
+          <span className="text">Sign In</span>
+        </button>
+        <button className="Btn" onClick={handleSignUp}>
+          <span className="text">Sign Up</span>
+        </button>
+      </StyledWrapper>
+      <AuthPopup
+        isOpen={isPopupOpen}
+        onClose={handleClosePopup}
+        mode={authMode}
+        onToggleMode={handleToggleMode}
+      />
+    </>
   );
 }
 

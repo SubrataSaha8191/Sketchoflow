@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Upload, Sparkles, Wand2, ImagePlus } from "lucide-react";
+import { Upload, Sparkles, Wand2, ImagePlus, Loader2 } from "lucide-react";
 import LaserFlow from "@/components/LaserFlow";
 import LightRays from "@/components/LightRays";
 import GenerateButton from "@/components/GenerateButton";
@@ -14,7 +14,12 @@ import { ContainerScroll } from "@/components/ui/container-scroll-animation";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { GridBeam } from "@/components/background-grid-beam";
 import { CosmicParallaxBg } from "@/components/parallax-cosmic-background";
+import { ParticleCard } from "@/components/MagicBento";
 import { useTheme, ColorTheme } from "@/context/ThemeContext";
+import TryAnimationStudio from "@/components/TryAnimationStudio";
+import SketchCanvas, { SketchCanvasRef } from "@/components/SketchCanvas";
+import AuthPopup from "@/components/AuthPopup";
+import Loader from "@/components/Loader";
 
 export default function Home() {
   const [loading, setLoading] = useState(false);
@@ -22,7 +27,16 @@ export default function Home() {
   const [preview, setPreview] = useState<string | null>(null);
   const [activeMode, setActiveMode] = useState<'generate' | 'sketch' | 'upload'>('generate');
   const [prompt, setPrompt] = useState("");
+  const [sketchPrompt, setSketchPrompt] = useState("");
+  const [transformPrompt, setTransformPrompt] = useState("");
+  const [brushSize, setBrushSize] = useState(5);
+  const [opacity, setOpacity] = useState(100);
+  const [aiResponse, setAiResponse] = useState<string | null>(null);
+  const [renderedSketchImage, setRenderedSketchImage] = useState<string | null>(null);
+  const [isImageZoomed, setIsImageZoomed] = useState(false);
+  const [isSignupPopupOpen, setIsSignupPopupOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const sketchCanvasRef = useRef<SketchCanvasRef>(null);
   
   // Section refs for intersection observer
   const heroSectionRef = useRef<HTMLDivElement>(null);
@@ -31,6 +45,84 @@ export default function Home() {
   const studioSectionRef = useRef<HTMLDivElement>(null);
   
   const { setButtonTheme } = useTheme();
+
+  // Gemini API call function
+  const callGeminiAPI = async (mode: 'generate' | 'sketch' | 'transform', imageData?: string | File) => {
+    setLoading(true);
+    setAiResponse(null);
+    
+    try {
+      const formData = new FormData();
+      formData.append("mode", mode);
+      
+      if (mode === "generate") {
+        formData.append("prompt", prompt);
+      } else if (mode === "sketch") {
+        formData.append("prompt", sketchPrompt);
+        if (imageData && typeof imageData === "string") {
+          // Convert base64 to blob
+          const response = await fetch(imageData);
+          const blob = await response.blob();
+          formData.append("image", blob, "sketch.png");
+        }
+      } else if (mode === "transform") {
+        formData.append("prompt", transformPrompt);
+        if (imageData instanceof File) {
+          formData.append("image", imageData);
+        }
+      }
+
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+      
+      if (data.success) {
+        setResult(data);
+        setAiResponse(data.result || data.description || data.message);
+      } else {
+        setAiResponse(`Error: ${data.error}`);
+      }
+    } catch (error) {
+      console.error("API Error:", error);
+      setAiResponse("Failed to connect to AI service");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle Generate (text-to-image)
+  const handleGenerate = async () => {
+    if (!prompt.trim()) return;
+    await callGeminiAPI("generate");
+  };
+
+  // Handle Render Sketch
+  const handleRenderSketch = async () => {
+    const canvasData = sketchCanvasRef.current?.getCanvasDataUrl();
+    if (!canvasData) {
+      setAiResponse("Please draw something on the canvas first");
+      return;
+    }
+    // Save the sketch as rendered image for the sidebar
+    setRenderedSketchImage(canvasData);
+    await callGeminiAPI("sketch", canvasData);
+  };
+
+  // Handle Transform Image
+  const handleTransformImage = async () => {
+    if (!preview) {
+      setAiResponse("Please upload an image first");
+      return;
+    }
+    // Get the file from the file input
+    const file = fileInputRef.current?.files?.[0];
+    if (file) {
+      await callGeminiAPI("transform", file);
+    }
+  };
 
   // Setup intersection observers for section-based theme switching
   useEffect(() => {
@@ -88,21 +180,24 @@ export default function Home() {
     };
   }, [setButtonTheme]);
 
+  // Handle ESC key to close zoomed image
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isImageZoomed) {
+        setIsImageZoomed(false);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isImageZoomed]);
+
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const url = URL.createObjectURL(file);
       setPreview(url);
     }
-  };
-
-  const handleGenerate = async () => {
-    setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setResult({ message: "Image generated successfully!" });
-      setLoading(false);
-    }, 2000);
   };
 
   return (
@@ -209,8 +304,42 @@ export default function Home() {
               
               {/* JoinToday Button */}
               <div className="relative z-30">
-                <JoinToday />
+                <JoinToday onJoinNowClick={() => setIsSignupPopupOpen(true)} />
               </div>
+
+              {/* Signup Popup */}
+              <AuthPopup
+                isOpen={isSignupPopupOpen}
+                onClose={() => setIsSignupPopupOpen(false)}
+                mode="signup"
+                onToggleMode={() => {}}
+              />
+
+              {/* Zoomed Image Modal */}
+              {isImageZoomed && renderedSketchImage && (
+                <div 
+                  className="fixed inset-0 z-100 bg-black/90 backdrop-blur-sm flex items-center justify-center p-8"
+                  onClick={() => setIsImageZoomed(false)}
+                >
+                  <div className="relative max-w-4xl max-h-[90vh] w-full">
+                    <button
+                      onClick={() => setIsImageZoomed(false)}
+                      className="absolute -top-12 right-0 text-white/70 hover:text-white transition-colors text-sm flex items-center gap-2"
+                    >
+                      <span>Press ESC or click anywhere to close</span>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                    <img 
+                      src={renderedSketchImage} 
+                      alt="Rendered sketch - zoomed"
+                      className="w-full h-full object-contain rounded-lg shadow-2xl"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -372,12 +501,26 @@ export default function Home() {
                       </label>
                       <div className="space-y-3">
                         <div>
-                          <label className="block text-xs text-gray-500 mb-2">Brush Size</label>
-                          <input type="range" min="1" max="50" defaultValue="5" className="w-full accent-purple-600" />
+                          <label className="block text-xs text-gray-500 mb-2">Brush Size: {brushSize}px</label>
+                          <input 
+                            type="range" 
+                            min="1" 
+                            max="50" 
+                            value={brushSize}
+                            onChange={(e) => setBrushSize(Number(e.target.value))}
+                            className="w-full accent-purple-600" 
+                          />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-500 mb-2">Opacity</label>
-                          <input type="range" min="0" max="100" defaultValue="100" className="w-full accent-purple-600" />
+                          <label className="block text-xs text-gray-500 mb-2">Opacity: {opacity}%</label>
+                          <input 
+                            type="range" 
+                            min="10" 
+                            max="100" 
+                            value={opacity}
+                            onChange={(e) => setOpacity(Number(e.target.value))}
+                            className="w-full accent-purple-600" 
+                          />
                         </div>
                       </div>
                     </div>
@@ -387,18 +530,20 @@ export default function Home() {
                         Enhancement Prompt
                       </label>
                       <textarea
+                        value={sketchPrompt}
+                        onChange={(e) => setSketchPrompt(e.target.value)}
                         placeholder="Describe how to enhance your sketch..."
                         className="w-full h-24 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
                       />
                     </div>
 
-                    <Button
-                      disabled
-                      className="w-full py-3 text-sm font-semibold bg-purple-600/50 rounded-lg cursor-not-allowed"
-                    >
-                      <Wand2 className="w-4 h-4" />
-                      Render Sketch
-                    </Button>
+                    <GenerateButton
+                      text="Render Sketch"
+                      loadingText="Processing"
+                      onClick={handleRenderSketch}
+                      disabled={loading}
+                      loading={loading}
+                    />
                   </>
                 )}
 
@@ -409,6 +554,8 @@ export default function Home() {
                         Transformation
                       </label>
                       <textarea
+                        value={transformPrompt}
+                        onChange={(e) => setTransformPrompt(e.target.value)}
                         placeholder="Describe the transformation..."
                         className="w-full h-24 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500 resize-none"
                       />
@@ -433,13 +580,13 @@ export default function Home() {
                       </select>
                     </div>
 
-                    <Button
-                      disabled={!preview}
-                      className="w-full py-3 text-sm font-semibold bg-pink-600 hover:bg-pink-700 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <ImagePlus className="w-4 h-4" />
-                      Transform
-                    </Button>
+                    <GenerateButton
+                      text="Transform"
+                      loadingText="Transforming"
+                      onClick={handleTransformImage}
+                      disabled={!preview || loading}
+                      loading={loading}
+                    />
                   </>
                 )}
               </div>
@@ -452,16 +599,23 @@ export default function Home() {
                     <div className="absolute inset-0 opacity-5" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
                     
                     {loading ? (
-                      <div className="relative text-center text-gray-400">
-                        <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                        <p className="text-lg font-medium">Generating your image...</p>
+                      <div className="relative text-center text-gray-400 w-full h-full flex flex-col items-center justify-center">
+                        <div className="relative w-64 h-40">
+                          <Loader />
+                        </div>
+                        <p className="text-lg font-medium mt-8">Generating your image...</p>
                         <p className="text-sm mt-2 text-gray-500">This may take a few moments</p>
                       </div>
                     ) : result ? (
-                      <div className="relative w-full h-full flex items-center justify-center p-8">
+                      <div className="relative w-full h-full flex flex-col items-center justify-center p-8">
                         <div className="max-w-full max-h-full bg-linear-to-br from-purple-500/20 to-blue-500/20 rounded-2xl p-8 border border-purple-500/30 backdrop-blur-sm">
-                          <p className="text-lg font-medium text-green-400 text-center">{result.message}</p>
-                          <p className="text-sm text-gray-400 text-center mt-2">Image preview would display here</p>
+                          <p className="text-lg font-medium text-green-400 text-center">{result.message || "Generation complete!"}</p>
+                          {aiResponse && (
+                            <div className="mt-4 max-h-48 overflow-y-auto">
+                              <p className="text-xs font-semibold text-purple-400 mb-2">AI Response:</p>
+                              <p className="text-sm text-gray-300">{aiResponse}</p>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ) : (
@@ -475,29 +629,65 @@ export default function Home() {
                 )}
 
                 {activeMode === 'sketch' && (
-                  <div className="h-full bg-white/95 rounded-2xl border border-white/10 relative overflow-hidden shadow-inner">
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="text-center text-gray-400">
-                        <Wand2 className="w-16 h-16 mx-auto mb-4" />
-                        <p className="text-lg font-medium">Drawing Canvas</p>
-                        <p className="text-sm mt-2">Canvas functionality coming soon</p>
+                  <div className="h-full rounded-2xl border border-white/10 relative overflow-hidden shadow-inner">
+                    <SketchCanvas 
+                      ref={sketchCanvasRef}
+                      brushSize={brushSize}
+                      opacity={opacity}
+                      onBrushSizeChange={setBrushSize}
+                      onOpacityChange={setOpacity}
+                    />
+                    {/* Loading overlay for sketch rendering */}
+                    {loading && activeMode === 'sketch' && (
+                      <div className="absolute inset-0 bg-zinc-900/90 backdrop-blur-sm flex flex-col items-center justify-center z-50">
+                        <div className="relative w-64 h-40">
+                          <Loader />
+                        </div>
+                        <p className="text-lg font-medium text-gray-300 mt-8">Rendering your sketch...</p>
+                        <p className="text-sm mt-2 text-gray-500">AI is enhancing your artwork</p>
                       </div>
-                    </div>
+                    )}
+                    {/* AI Response overlay */}
+                    {aiResponse && activeMode === 'sketch' && !loading && (
+                      <div className="absolute bottom-20 left-4 right-4 bg-zinc-900/95 backdrop-blur-sm rounded-xl p-4 border border-purple-500/30 max-h-32 overflow-y-auto">
+                        <p className="text-xs font-semibold text-purple-400 mb-2">AI Response:</p>
+                        <p className="text-sm text-gray-300">{aiResponse}</p>
+                      </div>
+                    )}
                   </div>
                 )}
 
                 {activeMode === 'upload' && (
-                  <div
-                    onClick={() => fileInputRef.current?.click()}
-                    className="h-full flex items-center justify-center bg-zinc-900/50 backdrop-blur-sm rounded-2xl border-2 border-dashed border-white/10 cursor-pointer hover:border-pink-500/50 hover:bg-pink-500/5 transition-all group"
-                  >
-                    {preview ? (
-                      <img src={preview} alt="preview" className="max-w-full max-h-full object-contain rounded-xl" />
-                    ) : (
-                      <div className="text-center text-gray-500 group-hover:text-pink-400 transition-colors">
-                        <Upload className="w-16 h-16 mx-auto mb-4" />
-                        <p className="text-lg font-medium">Drop image here or click to browse</p>
-                        <p className="text-sm mt-2">PNG, JPG, WebP up to 10MB</p>
+                  <div className="h-full flex flex-col bg-zinc-900/50 backdrop-blur-sm rounded-2xl border-2 border-dashed border-white/10 relative overflow-hidden">
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex-1 flex items-center justify-center cursor-pointer hover:border-pink-500/50 hover:bg-pink-500/5 transition-all group"
+                    >
+                      {preview ? (
+                        <img src={preview} alt="preview" className="max-w-full max-h-full object-contain rounded-xl" />
+                      ) : (
+                        <div className="text-center text-gray-500 group-hover:text-pink-400 transition-colors">
+                          <Upload className="w-16 h-16 mx-auto mb-4" />
+                          <p className="text-lg font-medium">Drop image here or click to browse</p>
+                          <p className="text-sm mt-2">PNG, JPG, WebP up to 10MB</p>
+                        </div>
+                      )}
+                    </div>
+                    {/* Loading overlay for image transform */}
+                    {loading && activeMode === 'upload' && (
+                      <div className="absolute inset-0 bg-zinc-900/90 backdrop-blur-sm flex flex-col items-center justify-center z-50">
+                        <div className="relative w-64 h-40">
+                          <Loader />
+                        </div>
+                        <p className="text-lg font-medium text-gray-300 mt-8">Transforming your image...</p>
+                        <p className="text-sm mt-2 text-gray-500">AI is analyzing and enhancing</p>
+                      </div>
+                    )}
+                    {/* AI Response overlay */}
+                    {aiResponse && activeMode === 'upload' && !loading && (
+                      <div className="absolute bottom-4 left-4 right-4 bg-zinc-900/95 backdrop-blur-sm rounded-xl p-4 border border-pink-500/30 max-h-32 overflow-y-auto">
+                        <p className="text-xs font-semibold text-pink-400 mb-2">AI Response:</p>
+                        <p className="text-sm text-gray-300">{aiResponse}</p>
                       </div>
                     )}
                   </div>
@@ -511,28 +701,150 @@ export default function Home() {
                 />
               </div>
 
-              {/* Right Sidebar - Layers/History */}
+              {/* Right Sidebar - Rendered Image/Export */}
               <div className="w-64 bg-zinc-900/50 backdrop-blur-sm border-l border-white/5 p-4 space-y-4">
                 <div>
-                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Layers</h3>
+                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
+                    {activeMode === 'sketch' ? 'Rendered Result' : 'Generated Image'}
+                  </h3>
                   <div className="space-y-2">
-                    <div className="px-3 py-2.5 bg-zinc-800/50 rounded-xl border border-white/10 hover:border-purple-500/30 transition-all cursor-pointer">
-                      <p className="text-sm text-gray-300">Generated Image</p>
-                      <p className="text-xs text-gray-500 mt-1">100%</p>
-                    </div>
-                    <div className="px-3 py-2.5 bg-zinc-800/30 rounded-xl border border-white/5">
-                      <p className="text-sm text-gray-400">Background</p>
-                      <p className="text-xs text-gray-600 mt-1">Locked</p>
-                    </div>
+                    {renderedSketchImage && activeMode === 'sketch' ? (
+                      <div 
+                        onClick={() => setIsImageZoomed(true)}
+                        className="relative group cursor-pointer rounded-xl overflow-hidden border border-white/10 hover:border-purple-500/50 transition-all"
+                      >
+                        <img 
+                          src={renderedSketchImage} 
+                          alt="Rendered sketch"
+                          className="w-full h-32 object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <span className="text-white text-xs font-medium">Click to zoom</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="px-3 py-8 bg-zinc-800/30 rounded-xl border border-dashed border-white/10 text-center">
+                        <p className="text-xs text-gray-500">
+                          {activeMode === 'sketch' ? 'Render a sketch to see the result here' : 'No image generated yet'}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 <div>
-                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">History</h3>
-                  <div className="space-y-1 text-xs text-gray-500">
-                    <div className="px-3 py-2 hover:bg-white/5 rounded-lg cursor-pointer transition-all">Generated image</div>
-                    <div className="px-3 py-2 hover:bg-white/5 rounded-lg cursor-pointer transition-all">Adjusted prompt</div>
-                    <div className="px-3 py-2 hover:bg-white/5 rounded-lg cursor-pointer transition-all">Initial state</div>
+                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Export As</h3>
+                  <div className="space-y-1.5">
+                    <button 
+                      onClick={() => {
+                        if (activeMode === 'sketch' && sketchCanvasRef.current) {
+                          const dataUrl = sketchCanvasRef.current.getCanvasDataUrl();
+                          if (dataUrl) {
+                            const link = document.createElement('a');
+                            link.download = 'sketch.png';
+                            link.href = dataUrl;
+                            link.click();
+                          }
+                        } else if (aiResponse) {
+                          const link = document.createElement('a');
+                          link.download = 'generated.png';
+                          link.href = aiResponse;
+                          link.click();
+                        }
+                      }}
+                      className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-purple-600/20 hover:text-purple-300 rounded-lg cursor-pointer transition-all flex items-center gap-2"
+                    >
+                      <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+                      PNG
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (activeMode === 'sketch' && sketchCanvasRef.current) {
+                          const canvas = document.querySelector('canvas');
+                          if (canvas) {
+                            const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+                            const link = document.createElement('a');
+                            link.download = 'sketch.jpg';
+                            link.href = dataUrl;
+                            link.click();
+                          }
+                        } else if (aiResponse) {
+                          const link = document.createElement('a');
+                          link.download = 'generated.jpg';
+                          link.href = aiResponse.replace('image/png', 'image/jpeg');
+                          link.click();
+                        }
+                      }}
+                      className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-blue-600/20 hover:text-blue-300 rounded-lg cursor-pointer transition-all flex items-center gap-2"
+                    >
+                      <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                      JPEG
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (activeMode === 'sketch' && sketchCanvasRef.current) {
+                          const canvas = document.querySelector('canvas');
+                          if (canvas) {
+                            const dataUrl = canvas.toDataURL('image/webp', 0.9);
+                            const link = document.createElement('a');
+                            link.download = 'sketch.webp';
+                            link.href = dataUrl;
+                            link.click();
+                          }
+                        } else if (aiResponse) {
+                          const link = document.createElement('a');
+                          link.download = 'generated.webp';
+                          link.href = aiResponse;
+                          link.click();
+                        }
+                      }}
+                      className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-green-600/20 hover:text-green-300 rounded-lg cursor-pointer transition-all flex items-center gap-2"
+                    >
+                      <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                      WebP
+                    </button>
+                    <button 
+                      onClick={() => {
+                        const canvas = document.querySelector('canvas');
+                        if (canvas) {
+                          canvas.toBlob((blob) => {
+                            if (blob) {
+                              const url = URL.createObjectURL(blob);
+                              const link = document.createElement('a');
+                              link.download = 'image.bmp';
+                              link.href = url;
+                              link.click();
+                              URL.revokeObjectURL(url);
+                            }
+                          }, 'image/bmp');
+                        }
+                      }}
+                      className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-orange-600/20 hover:text-orange-300 rounded-lg cursor-pointer transition-all flex items-center gap-2"
+                    >
+                      <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+                      BMP
+                    </button>
+                    <button 
+                      onClick={async () => {
+                        const canvas = document.querySelector('canvas');
+                        if (canvas) {
+                          try {
+                            const dataUrl = canvas.toDataURL('image/png');
+                            const response = await fetch(dataUrl);
+                            const blob = await response.blob();
+                            const item = new ClipboardItem({ 'image/png': blob });
+                            await navigator.clipboard.write([item]);
+                            alert('Image copied to clipboard!');
+                          } catch (err) {
+                            console.error('Failed to copy:', err);
+                          }
+                        }
+                      }}
+                      className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-pink-600/20 hover:text-pink-300 rounded-lg cursor-pointer transition-all flex items-center gap-2"
+                    >
+                      <span className="w-2 h-2 rounded-full bg-pink-500"></span>
+                      Copy to Clipboard
+                    </button>
                   </div>
                 </div>
               </div>
@@ -579,268 +891,179 @@ export default function Home() {
               {" "}Studio
             </h2>
             <p className="text-xl text-gray-400 max-w-3xl mx-auto font-normal tracking-wide">
-              From text-to-video to SVG animations — discover the complete toolkit for creating stunning motion graphics with AI.
+              Four powerful tools — from instant CSS animations to stunning AI-generated videos. Everything you need to create motion magic.
             </p>
           </div>
 
-          {/* Features Grid - 4 columns on large screens */}
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Features Grid - 2x2 Quad Layout */}
+          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
             
-            {/* Feature 1: AI Video Animations */}
-            <div className="group relative">
-              <div className="relative h-full bg-zinc-800/50 backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:border-purple-500/40 transition-all duration-300">
-                <div className="absolute -inset-0.5 bg-linear-to-r from-purple-500/20 to-pink-500/20 rounded-2xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center mb-4">
-                    <svg className="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-lg font-bold text-white mb-2">Text → Video</h3>
-                  <p className="text-sm text-gray-400 mb-4">Generate full animations from text prompts. Create explainer scenes, logo reveals, and character sequences.</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {['Runway', 'Pika', 'PixVerse'].map((tag) => (
-                      <span key={tag} className="px-2 py-0.5 text-[10px] font-medium bg-purple-500/10 text-purple-400 rounded-full">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
+            {/* Feature 1: CSS Animation - Instant & Lightweight */}
+            <ParticleCard
+              className="bg-zinc-800/50 backdrop-blur-sm rounded-3xl p-8 border border-white/10 hover:border-cyan-500/40 transition-all duration-300"
+              glowColor="6, 182, 212"
+              enableTilt={true}
+              clickEffect={true}
+            >
+              <div className="relative">
+                {/* Lottie Animation */}
+                <div className="w-full aspect-4/3 mb-6 flex items-center justify-center rounded-2xl bg-zinc-900/30 overflow-hidden">
+                  <DotLottieReact
+                    src="/Data Scanning.lottie"
+                    loop
+                    autoplay
+                    className="w-full h-full object-contain scale-110"
+                  />
+                </div>
+                <div className="flex items-start justify-between mb-4">
+                  <h3 className="text-2xl font-bold text-white">Text → CSS Animation</h3>
+                  <span className="px-3 py-1 text-xs font-semibold bg-cyan-500/10 text-cyan-400 rounded-full border border-cyan-500/20">
+                    Zero GPU
+                  </span>
+                </div>
+                <p className="text-gray-400 mb-4 leading-relaxed">
+                  Instant, lightweight animations that run 100% client-side. Create bouncing buttons, glowing effects, and smooth transitions.
+                </p>
+                <div className="bg-zinc-900/50 rounded-xl p-4 mb-4 border border-white/5">
+                  <p className="text-xs text-gray-500 mb-2">Example prompt:</p>
+                  <p className="text-sm text-cyan-300 font-mono">&quot;Make a bouncing glowing button animation&quot;</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {['CSS Code', 'HTML Snippet', 'Live Preview'].map((tag) => (
+                    <span key={tag} className="px-3 py-1 text-xs font-medium bg-cyan-500/10 text-cyan-400 rounded-full">
+                      {tag}
+                    </span>
+                  ))}
                 </div>
               </div>
-            </div>
+            </ParticleCard>
 
-            {/* Feature 2: GIF Animations */}
-            <div className="group relative">
-              <div className="relative h-full bg-zinc-800/50 backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:border-pink-500/40 transition-all duration-300">
-                <div className="absolute -inset-0.5 bg-linear-to-r from-pink-500/20 to-rose-500/20 rounded-2xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-xl bg-pink-500/20 flex items-center justify-center mb-4">
-                    <svg className="w-6 h-6 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-lg font-bold text-white mb-2">GIF Animations</h3>
-                  <p className="text-sm text-gray-400 mb-4">Perfect for websites and apps. Loop-friendly, transparency support, simple to embed anywhere.</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {['Canva AI', 'Runway', 'Pika'].map((tag) => (
-                      <span key={tag} className="px-2 py-0.5 text-[10px] font-medium bg-pink-500/10 text-pink-400 rounded-full">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
+            {/* Feature 2: SVG Animation - Vector-Based */}
+            <ParticleCard
+              className="bg-zinc-800/50 backdrop-blur-sm rounded-3xl p-8 border border-white/10 hover:border-green-500/40 transition-all duration-300"
+              glowColor="34, 197, 94"
+              enableTilt={true}
+              clickEffect={true}
+            >
+              <div className="relative">
+                {/* Lottie Animation */}
+                <div className="w-full aspect-4/3 mb-6 flex items-center justify-center rounded-2xl bg-zinc-900/30 overflow-hidden">
+                  <DotLottieReact
+                    src="/Seo isometric composition with human characters.lottie"
+                    loop
+                    autoplay
+                    className="w-full h-full object-contain scale-110"
+                  />
+                </div>
+                <div className="flex items-start justify-between mb-4">
+                  <h3 className="text-2xl font-bold text-white">Text → SVG Animation</h3>
+                  <span className="px-3 py-1 text-xs font-semibold bg-green-500/10 text-green-400 rounded-full border border-green-500/20">
+                    Vector Quality
+                  </span>
+                </div>
+                <p className="text-gray-400 mb-4 leading-relaxed">
+                  Generate scalable vector animations with perfect quality at any size. Create rotating shapes, morphing icons, and path animations.
+                </p>
+                <div className="bg-zinc-900/50 rounded-xl p-4 mb-4 border border-white/5">
+                  <p className="text-xs text-gray-500 mb-2">Example prompt:</p>
+                  <p className="text-sm text-green-300 font-mono">&quot;Create a rotating 3D-like cube animation&quot;</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {['<svg> Code', '<animate>', 'Canvas Preview'].map((tag) => (
+                    <span key={tag} className="px-3 py-1 text-xs font-medium bg-green-500/10 text-green-400 rounded-full">
+                      {tag}
+                    </span>
+                  ))}
                 </div>
               </div>
-            </div>
+            </ParticleCard>
 
-            {/* Feature 3: SVG Animations */}
-            <div className="group relative">
-              <div className="relative h-full bg-zinc-800/50 backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:border-green-500/40 transition-all duration-300">
-                <div className="absolute -inset-0.5 bg-linear-to-r from-green-500/20 to-emerald-500/20 rounded-2xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center mb-4">
-                    <svg className="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                    </svg>
-                  </div>
-                  <h3 className="text-lg font-bold text-white mb-2">SVG Animations</h3>
-                  <p className="text-sm text-gray-400 mb-4">Vector-based, lightweight code. Perfect for UI micro-interactions and web animations.</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {['SVGator', 'Haikei', 'Figma'].map((tag) => (
-                      <span key={tag} className="px-2 py-0.5 text-[10px] font-medium bg-green-500/10 text-green-400 rounded-full">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
+            {/* Feature 3: GIF Animation - Easy to Embed */}
+            <ParticleCard
+              className="bg-zinc-800/50 backdrop-blur-sm rounded-3xl p-8 border border-white/10 hover:border-pink-500/40 transition-all duration-300"
+              glowColor="236, 72, 153"
+              enableTilt={true}
+              clickEffect={true}
+            >
+              <div className="relative">
+                {/* Lottie Animation */}
+                <div className="w-full aspect-4/3 mb-6 flex items-center justify-center rounded-2xl bg-zinc-900/30 overflow-hidden">
+                  <DotLottieReact
+                    src="/New app development on desktop.lottie"
+                    loop
+                    autoplay
+                    className="w-full h-full object-contain scale-110"
+                  />
+                </div>
+                <div className="flex items-start justify-between mb-4">
+                  <h3 className="text-2xl font-bold text-white">Text → GIF Animation</h3>
+                  <span className="px-3 py-1 text-xs font-semibold bg-pink-500/10 text-pink-400 rounded-full border border-pink-500/20">
+                    Instant Share
+                  </span>
+                </div>
+                <p className="text-gray-400 mb-4 leading-relaxed">
+                  Generate eye-catching GIF animations from text. Perfect for social media, websites, and apps — loop-friendly and easy to embed.
+                </p>
+                <div className="bg-zinc-900/50 rounded-xl p-4 mb-4 border border-white/5">
+                  <p className="text-xs text-gray-500 mb-2">Example prompt:</p>
+                  <p className="text-sm text-pink-300 font-mono">&quot;A glowing neon sign flickering on and off&quot;</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {['Runway API', 'Pika', 'PixVerse'].map((tag) => (
+                    <span key={tag} className="px-3 py-1 text-xs font-medium bg-pink-500/10 text-pink-400 rounded-full">
+                      {tag}
+                    </span>
+                  ))}
                 </div>
               </div>
-            </div>
+            </ParticleCard>
 
-            {/* Feature 4: Motion Graphics */}
-            <div className="group relative">
-              <div className="relative h-full bg-zinc-800/50 backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:border-blue-500/40 transition-all duration-300">
-                <div className="absolute -inset-0.5 bg-linear-to-r from-blue-500/20 to-cyan-500/20 rounded-2xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center mb-4">
-                    <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4V2m0 2v2m0-2h10M7 8v12a2 2 0 002 2h6a2 2 0 002-2V8M7 8H5a2 2 0 00-2 2v2a2 2 0 002 2h2m10-6h2a2 2 0 012 2v2a2 2 0 01-2 2h-2" />
-                    </svg>
-                  </div>
-                  <h3 className="text-lg font-bold text-white mb-2">Motion Graphics</h3>
-                  <p className="text-sm text-gray-400 mb-4">AI-assisted motion design. Create UI transitions, icon animations, and marketing visuals.</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {['Jitter', 'Runway', 'AE Plugins'].map((tag) => (
-                      <span key={tag} className="px-2 py-0.5 text-[10px] font-medium bg-blue-500/10 text-blue-400 rounded-full">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
+            {/* Feature 4: Video Animation - Premium MP4 */}
+            <ParticleCard
+              className="bg-zinc-800/50 backdrop-blur-sm rounded-3xl p-8 border border-white/10 hover:border-purple-500/40 transition-all duration-300"
+              glowColor="147, 51, 234"
+              enableTilt={true}
+              clickEffect={true}
+            >
+              <div className="relative">
+                {/* Lottie Animation */}
+                <div className="w-full aspect-4/3 mb-6 flex items-center justify-center rounded-2xl bg-zinc-900/30 overflow-hidden">
+                  <DotLottieReact
+                    src="/Web Development.lottie"
+                    loop
+                    autoplay
+                    className="w-full h-full object-contain scale-110"
+                  />
+                </div>
+                <div className="flex items-start justify-between mb-4">
+                  <h3 className="text-2xl font-bold text-white">Text → Video (MP4)</h3>
+                  <span className="px-3 py-1 text-xs font-semibold bg-purple-500/10 text-purple-400 rounded-full border border-purple-500/20">
+                    AI Studio
+                  </span>
+                </div>
+                <p className="text-gray-400 mb-4 leading-relaxed">
+                  Create professional video animations with AI. Generate explainer scenes, logo reveals, and cinematic motion graphics.
+                </p>
+                <div className="bg-zinc-900/50 rounded-xl p-4 mb-4 border border-white/5">
+                  <p className="text-xs text-gray-500 mb-2">Example prompt:</p>
+                  <p className="text-sm text-purple-300 font-mono">&quot;Logo reveal with particles and light rays&quot;</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {['Runway Gen-2', 'Pika', 'PixVerse'].map((tag) => (
+                    <span key={tag} className="px-3 py-1 text-xs font-medium bg-purple-500/10 text-purple-400 rounded-full">
+                      {tag}
+                    </span>
+                  ))}
                 </div>
               </div>
-            </div>
+            </ParticleCard>
 
-            {/* Feature 5: Image → Animation */}
-            <div className="group relative">
-              <div className="relative h-full bg-zinc-800/50 backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:border-orange-500/40 transition-all duration-300">
-                <div className="absolute -inset-0.5 bg-linear-to-r from-orange-500/20 to-amber-500/20 rounded-2xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-xl bg-orange-500/20 flex items-center justify-center mb-4">
-                    <svg className="w-6 h-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-lg font-bold text-white mb-2">Image → Animation</h3>
-                  <p className="text-sm text-gray-400 mb-4">Animate any image. Create talking avatars, character motion, and logo morphing effects.</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {['D-ID', 'Viggle', 'Kyber'].map((tag) => (
-                      <span key={tag} className="px-2 py-0.5 text-[10px] font-medium bg-orange-500/10 text-orange-400 rounded-full">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Feature 6: 3D AI Animation */}
-            <div className="group relative">
-              <div className="relative h-full bg-zinc-800/50 backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:border-violet-500/40 transition-all duration-300">
-                <div className="absolute -inset-0.5 bg-linear-to-r from-violet-500/20 to-purple-500/20 rounded-2xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-xl bg-violet-500/20 flex items-center justify-center mb-4">
-                    <svg className="w-6 h-6 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                    </svg>
-                  </div>
-                  <h3 className="text-lg font-bold text-white mb-2">3D Animation</h3>
-                  <p className="text-sm text-gray-400 mb-4">Cinematic 3D shots and camera movements. Perfect for AR/VR, portfolios, and showcases.</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {['Wonder', 'Move.ai', 'Luma'].map((tag) => (
-                      <span key={tag} className="px-2 py-0.5 text-[10px] font-medium bg-violet-500/10 text-violet-400 rounded-full">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Feature 7: Sprite Sheets */}
-            <div className="group relative">
-              <div className="relative h-full bg-zinc-800/50 backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:border-yellow-500/40 transition-all duration-300">
-                <div className="absolute -inset-0.5 bg-linear-to-r from-yellow-500/20 to-amber-500/20 rounded-2xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-xl bg-yellow-500/20 flex items-center justify-center mb-4">
-                    <svg className="w-6 h-6 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-lg font-bold text-white mb-2">Sprite Sheets</h3>
-                  <p className="text-sm text-gray-400 mb-4">2D game-style animations. Lightweight sprites perfect for web apps and game development.</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {['Leonardo', 'Aseprite', 'AI Plugins'].map((tag) => (
-                      <span key={tag} className="px-2 py-0.5 text-[10px] font-medium bg-yellow-500/10 text-yellow-400 rounded-full">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Feature 8: CSS Animations */}
-            <div className="group relative">
-              <div className="relative h-full bg-zinc-800/50 backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:border-teal-500/40 transition-all duration-300">
-                <div className="absolute -inset-0.5 bg-linear-to-r from-teal-500/20 to-cyan-500/20 rounded-2xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-xl bg-teal-500/20 flex items-center justify-center mb-4">
-                    <svg className="w-6 h-6 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-lg font-bold text-white mb-2">CSS Animations</h3>
-                  <p className="text-sm text-gray-400 mb-4">Text to CSS code. Super lightweight animations for buttons, loaders, and transitions.</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {['AnimateUI', 'MagicMotion', 'AI CSS'].map((tag) => (
-                      <span key={tag} className="px-2 py-0.5 text-[10px] font-medium bg-teal-500/10 text-teal-400 rounded-full">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          {/* Two Column Lottie Showcase */}
-          <div className="grid md:grid-cols-2 gap-8 mt-16">
-            {/* Web Animations Lottie Card */}
-            <div className="group relative">
-              <div className="relative h-full bg-zinc-800/40 backdrop-blur-sm rounded-3xl p-8 border border-white/10 hover:border-green-500/30 transition-all duration-500">
-                <div className="absolute -inset-1 bg-linear-to-r from-green-500/20 to-emerald-500/20 rounded-3xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                <div className="relative">
-                  <div className="w-full aspect-4/3 mb-6 flex items-center justify-center">
-                    <DotLottieReact
-                      src="/Web Development.lottie"
-                      loop
-                      autoplay
-                      className="w-full h-full object-contain"
-                    />
-                  </div>
-                  <h3 className="text-2xl font-bold text-white mb-3" style={{ fontFamily: 'var(--font-heading)' }}>
-                    Web Animations
-                  </h3>
-                  <p className="text-gray-400 leading-relaxed">
-                    Generate lightweight SVG, CSS, and Lottie animations for websites. Perfect for micro-interactions, loaders, and UI transitions.
-                  </p>
-                  <div className="flex flex-wrap gap-2 mt-4">
-                    {['Lottie', 'SVG', 'CSS', 'GSAP'].map((tag) => (
-                      <span key={tag} className="px-3 py-1 text-xs font-medium bg-green-500/10 text-green-400 rounded-full border border-green-500/20">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Video & Motion Graphics Lottie Card */}
-            <div className="group relative">
-              <div className="relative h-full bg-zinc-800/40 backdrop-blur-sm rounded-3xl p-8 border border-white/10 hover:border-teal-500/30 transition-all duration-500">
-                <div className="absolute -inset-1 bg-linear-to-r from-teal-500/20 to-cyan-500/20 rounded-3xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                <div className="relative">
-                  <div className="w-full aspect-4/3 mb-6 flex items-center justify-center">
-                    <DotLottieReact
-                      src="/New app development on desktop.lottie"
-                      loop
-                      autoplay
-                      className="w-full h-full object-contain"
-                    />
-                  </div>
-                  <h3 className="text-2xl font-bold text-white mb-3" style={{ fontFamily: 'var(--font-heading)' }}>
-                    Video & Motion
-                  </h3>
-                  <p className="text-gray-400 leading-relaxed">
-                    Create stunning video animations, motion graphics, and 3D renders from text prompts. Export to any format you need.
-                  </p>
-                  <div className="flex flex-wrap gap-2 mt-4">
-                    {['MP4', 'GIF', '3D', 'After Effects'].map((tag) => (
-                      <span key={tag} className="px-3 py-1 text-xs font-medium bg-teal-500/10 text-teal-400 rounded-full border border-teal-500/20">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Bottom CTA */}
-          <div className="text-center mt-16 relative z-40 pb-32">
+          <div className="text-center mt-16 relative z-40 pb-32" suppressHydrationWarning>
             <p className="text-gray-500 mb-6">Ready to create stunning animations with AI?</p>
-            <button className="px-8 py-4 bg-linear-to-r from-green-600 to-emerald-500 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-green-500/25 transition-all duration-300 hover:scale-105">
-              Try Animation Studio
-            </button>
+            <TryAnimationStudio />
           </div>
         </div>
 
@@ -868,25 +1091,18 @@ export default function Home() {
           <div className="max-w-7xl mx-auto px-6">
             {/* Section Header */}
             <div className="text-center mb-16 space-y-6">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-pink-500/10 border border-pink-500/20 mb-4">
-                <span className="w-2 h-2 rounded-full bg-pink-500 animate-pulse" />
-                <span className="text-sm font-medium text-pink-400">Now Available</span>
-              </div>
+              
               <h2 className="text-5xl md:text-6xl font-extrabold" style={{ fontFamily: 'var(--font-heading)' }}>
-                Your{" "}
-                <span className="bg-linear-to-r from-pink-500 via-purple-500 to-violet-500 bg-clip-text text-transparent">
-                  Animation
-                </span>
-                {" "}Workspace
+                Your <span className="bg-linear-to-r from-pink-500 via-purple-500 to-violet-500 bg-clip-text text-transparent">Animation</span> Workspace
               </h2>
               <p className="text-xl text-gray-400 max-w-3xl mx-auto font-normal tracking-wide">
-                A unified creative environment for all your animation needs. Generate, edit, and export — all in one powerful interface.
+                Four powerful tools in one unified interface. Create CSS, SVG, GIF, and Video animations with AI.
               </p>
             </div>
 
             {/* Animation Studio Workspace */}
-            <div className="bg-zinc-900/80 backdrop-blur-xl rounded-xl border border-white/10 shadow-2xl overflow-hidden">
-              {/* Top Toolbar */}
+            <div className="bg-zinc-900/80 backdrop-blur-xl rounded-xl border border-white/10 shadow-2xl overflow-hidden" suppressHydrationWarning>
+              {/* Top Toolbar with 4 Tabs */}
               <div className="bg-zinc-950/90 border-b border-white/5 px-4 py-2 flex items-center justify-between">
                 <div className="flex items-center gap-6">
                   <div className="flex items-center gap-2">
@@ -894,20 +1110,23 @@ export default function Home() {
                     <div className="w-3 h-3 rounded-full bg-yellow-500/80"></div>
                     <div className="w-3 h-3 rounded-full bg-green-500/80"></div>
                   </div>
-                  <div className="text-xs text-gray-400 font-medium">Untitled Animation</div>
+                  {/* 4 Feature Tabs */}
+                  <div className="flex items-center gap-1 bg-zinc-900/50 rounded-lg p-1">
+                    <button className="px-4 py-1.5 text-xs font-medium bg-cyan-600 text-white rounded-md transition-colors">
+                      CSS
+                    </button>
+                    <button className="px-4 py-1.5 text-xs font-medium text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-colors">
+                      SVG
+                    </button>
+                    <button className="px-4 py-1.5 text-xs font-medium text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-colors">
+                      GIF
+                    </button>
+                    <button className="px-4 py-1.5 text-xs font-medium text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-colors">
+                      Video
+                    </button>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button className="p-1.5 hover:bg-white/5 rounded transition-colors" title="Undo">
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                    </svg>
-                  </button>
-                  <button className="p-1.5 hover:bg-white/5 rounded transition-colors" title="Redo">
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 10h-10a8 8 0 00-8 8v2m18-10l-6 6m6-6l-6-6" />
-                    </svg>
-                  </button>
-                  <div className="w-px h-4 bg-white/10 mx-2"></div>
                   <button className="px-3 py-1 text-xs bg-pink-600 hover:bg-pink-700 text-white rounded transition-colors">
                     Export
                   </button>
@@ -915,103 +1134,48 @@ export default function Home() {
               </div>
 
               {/* Main Workspace */}
-              <div className="flex h-[600px]">
-                {/* Left Sidebar - Tools */}
-                <div className="w-16 bg-zinc-950/50 border-r border-white/5 flex flex-col items-center py-4 gap-2">
-                  {[
-                    { icon: 'M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122', title: 'Select' },
-                    { icon: 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z', title: 'Image' },
-                    { icon: 'M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01', title: 'Draw' },
-                    { icon: 'M4 6h16M4 12h16M4 18h16', title: 'Text' },
-                    { icon: 'M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z', title: 'Effects' },
-                  ].map((tool, idx) => (
-                    <button
-                      key={idx}
-                      className={`p-2 rounded transition-colors ${idx === 0 ? 'bg-pink-600/20 text-pink-400' : 'text-gray-400 hover:bg-white/5'}`}
-                      title={tool.title}
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={tool.icon} />
-                      </svg>
-                    </button>
-                  ))}
-                </div>
+              <div className="flex h-[550px]">
+                {/* Left - Prompt Input Panel */}
+                <div className="w-80 bg-zinc-950/50 border-r border-white/5 p-4 flex flex-col">
+                  <div className="mb-4">
+                    <label className="text-xs font-medium text-gray-400 mb-2 block">Describe your animation</label>
+                    <textarea 
+                      className="w-full h-32 bg-zinc-900 border border-white/10 rounded-lg px-4 py-3 text-sm text-gray-300 placeholder-gray-500 resize-none focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50"
+                      placeholder="Make a bouncing glowing button animation with a pulsing cyan shadow..."
+                    />
+                  </div>
 
-                {/* Center - Canvas Area */}
-                <div className="flex-1 bg-zinc-900/50 relative">
-                  {/* Canvas Grid Background */}
-                  <div className="absolute inset-0" style={{
-                    backgroundImage: 'linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)',
-                    backgroundSize: '20px 20px'
-                  }}>
-                    {/* Canvas Content Area */}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-[500px] h-[400px] bg-white/5 border-2 border-dashed border-pink-500/30 rounded-lg flex items-center justify-center">
-                        <div className="text-center space-y-4">
-                          <svg className="w-16 h-16 mx-auto text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
-                          </svg>
-                          <div className="text-gray-500 text-sm">
-                            <p className="font-medium">Drop files or generate animation</p>
-                            <p className="text-xs text-gray-600 mt-1">Supports MP4, GIF, WebM, Lottie</p>
-                          </div>
-                        </div>
-                      </div>
+                  {/* Quick Prompts */}
+                  <div className="mb-4">
+                    <label className="text-xs font-medium text-gray-400 mb-2 block">Quick Prompts</label>
+                    <div className="flex flex-wrap gap-2">
+                      {['Bounce', 'Pulse', 'Shake', 'Fade', 'Slide', 'Glow'].map((prompt) => (
+                        <button
+                          key={prompt}
+                          className="px-2.5 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-gray-400 hover:text-white rounded-full border border-white/5 transition-colors"
+                        >
+                          {prompt}
+                        </button>
+                      ))}
                     </div>
                   </div>
 
-                  {/* Canvas Controls - Bottom Left */}
-                  <div className="absolute bottom-4 left-4 flex items-center gap-2 bg-zinc-950/80 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/10">
-                    <button className="p-1 hover:bg-white/5 rounded transition-colors">
-                      <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                      </svg>
-                    </button>
-                    <span className="text-xs text-gray-400 font-mono">100%</span>
-                    <button className="p-1 hover:bg-white/5 rounded transition-colors">
-                      <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Right Sidebar - Properties */}
-                <div className="w-72 bg-zinc-950/50 border-l border-white/5 overflow-y-auto">
-                  <div className="p-4 space-y-6">
-                    {/* Animation Type */}
+                  {/* Duration & Easing */}
+                  <div className="space-y-4 mb-4">
                     <div>
-                      <label className="text-xs font-medium text-gray-400 mb-2 block">Animation Type</label>
-                      <select className="w-full bg-zinc-900 border border-white/10 rounded px-3 py-2 text-sm text-gray-300 focus:outline-none focus:ring-1 focus:ring-pink-500">
-                        <option>Fade In/Out</option>
-                        <option>Slide</option>
-                        <option>Scale</option>
-                        <option>Rotate</option>
-                        <option>Custom</option>
-                      </select>
-                    </div>
-
-                    {/* Duration */}
-                    <div>
-                      <label className="text-xs font-medium text-gray-400 mb-2 block">Duration (seconds)</label>
+                      <label className="text-xs font-medium text-gray-400 mb-2 block">Duration: 1.5s</label>
                       <input 
                         type="range" 
-                        min="0.5" 
-                        max="10" 
-                        step="0.5" 
-                        defaultValue="2"
-                        className="w-full"
+                        min="0.1" 
+                        max="5" 
+                        step="0.1" 
+                        defaultValue="1.5"
+                        className="w-full accent-cyan-500"
                       />
-                      <div className="flex justify-between text-xs text-gray-500 mt-1">
-                        <span>0.5s</span>
-                        <span>10s</span>
-                      </div>
                     </div>
-
-                    {/* Easing */}
                     <div>
-                      <label className="text-xs font-medium text-gray-400 mb-2 block">Easing Function</label>
-                      <select className="w-full bg-zinc-900 border border-white/10 rounded px-3 py-2 text-sm text-gray-300 focus:outline-none focus:ring-1 focus:ring-pink-500">
+                      <label className="text-xs font-medium text-gray-400 mb-2 block">Easing</label>
+                      <select className="w-full bg-zinc-900 border border-white/10 rounded px-3 py-2 text-sm text-gray-300 focus:outline-none focus:ring-1 focus:ring-cyan-500">
                         <option>ease-in-out</option>
                         <option>linear</option>
                         <option>ease-in</option>
@@ -1019,95 +1183,174 @@ export default function Home() {
                         <option>cubic-bezier</option>
                       </select>
                     </div>
+                  </div>
 
-                    {/* Style Presets */}
-                    <div>
-                      <label className="text-xs font-medium text-gray-400 mb-2 block">Style Preset</label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {['Cinematic', 'Minimal', 'Neon', 'Retro'].map((style) => (
-                          <button
-                            key={style}
-                            className="px-3 py-2 bg-zinc-900 hover:bg-zinc-800 border border-white/10 rounded text-xs text-gray-300 transition-colors"
-                          >
-                            {style}
-                          </button>
-                        ))}
-                      </div>
+                  {/* Generate Button */}
+                  <button className="mt-auto w-full bg-linear-to-r from-cyan-600 to-cyan-500 hover:from-cyan-700 hover:to-cyan-600 text-white font-medium py-3 rounded-lg transition-all duration-300 flex items-center justify-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    Generate Animation
+                  </button>
+                </div>
+
+                {/* Center - Live Preview */}
+                <div className="flex-1 bg-zinc-900/50 relative flex flex-col">
+                  {/* Preview Header */}
+                  <div className="px-4 py-2 border-b border-white/5 flex items-center justify-between">
+                    <span className="text-xs font-medium text-gray-400">Live Preview</span>
+                    <div className="flex items-center gap-2">
+                      <button className="p-1.5 hover:bg-white/5 rounded transition-colors" title="Reset">
+                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                      </button>
+                      <button className="p-1.5 hover:bg-white/5 rounded transition-colors" title="Fullscreen">
+                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                        </svg>
+                      </button>
                     </div>
+                  </div>
 
-                    {/* Export Format */}
-                    <div>
-                      <label className="text-xs font-medium text-gray-400 mb-2 block">Export Format</label>
-                      <div className="flex gap-2">
-                        {['MP4', 'GIF', 'WebM', 'JSON'].map((format) => (
-                          <button
-                            key={format}
-                            className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-                              format === 'MP4' 
-                                ? 'bg-pink-600 text-white' 
-                                : 'bg-zinc-900 text-gray-400 hover:bg-zinc-800'
-                            }`}
-                          >
-                            {format}
-                          </button>
-                        ))}
-                      </div>
+                  {/* Preview Canvas */}
+                  <div className="flex-1 flex items-center justify-center p-8" style={{
+                    backgroundImage: 'linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)',
+                    backgroundSize: '20px 20px'
+                  }}>
+                    {/* Sample Animated Button Preview */}
+                    <div className="relative">
+                      <button 
+                        className="px-8 py-4 bg-cyan-600 text-white font-semibold rounded-xl transition-all"
+                        style={{
+                          animation: 'bounce 1s ease-in-out infinite, glow 2s ease-in-out infinite alternate',
+                          boxShadow: '0 0 20px rgba(6, 182, 212, 0.5), 0 0 40px rgba(6, 182, 212, 0.3)'
+                        }}
+                      >
+                        Animated Button
+                      </button>
+                      <style>{`
+                        @keyframes bounce {
+                          0%, 100% { transform: translateY(0); }
+                          50% { transform: translateY(-10px); }
+                        }
+                        @keyframes glow {
+                          0% { box-shadow: 0 0 20px rgba(6, 182, 212, 0.5), 0 0 40px rgba(6, 182, 212, 0.3); }
+                          100% { box-shadow: 0 0 30px rgba(6, 182, 212, 0.7), 0 0 60px rgba(6, 182, 212, 0.5); }
+                        }
+                      `}</style>
                     </div>
+                  </div>
 
-                    {/* Generate Button */}
-                    <button className="w-full bg-linear-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white font-medium py-3 rounded-lg transition-all duration-300 flex items-center justify-center gap-2">
+                  {/* Background Options */}
+                  <div className="px-4 py-2 border-t border-white/5 flex items-center gap-2">
+                    <span className="text-xs text-gray-500">Background:</span>
+                    {['Dark', 'Light', 'Grid', 'None'].map((bg) => (
+                      <button
+                        key={bg}
+                        className={`px-2 py-1 text-xs rounded transition-colors ${bg === 'Grid' ? 'bg-cyan-600/20 text-cyan-400' : 'text-gray-400 hover:text-white'}`}
+                      >
+                        {bg}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Right - Code Output Panel */}
+                <div className="w-80 bg-zinc-950/50 border-l border-white/5 flex flex-col">
+                  {/* Code Tabs */}
+                  <div className="px-4 py-2 border-b border-white/5 flex items-center gap-1">
+                    <button className="px-3 py-1 text-xs font-medium bg-cyan-600/20 text-cyan-400 rounded transition-colors">
+                      CSS
+                    </button>
+                    <button className="px-3 py-1 text-xs font-medium text-gray-400 hover:text-white rounded transition-colors">
+                      HTML
+                    </button>
+                    <button className="px-3 py-1 text-xs font-medium text-gray-400 hover:text-white rounded transition-colors">
+                      React
+                    </button>
+                  </div>
+
+                  {/* Code Display */}
+                  <div className="flex-1 overflow-auto p-4">
+                    <pre className="text-xs font-mono text-gray-300 leading-relaxed">
+                      <code>{`.animated-button {
+  padding: 1rem 2rem;
+  background: #0891b2;
+  color: white;
+  font-weight: 600;
+  border-radius: 0.75rem;
+  animation: 
+    bounce 1s ease-in-out infinite,
+    glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes bounce {
+  0%, 100% { 
+    transform: translateY(0); 
+  }
+  50% { 
+    transform: translateY(-10px); 
+  }
+}
+
+@keyframes glow {
+  0% { 
+    box-shadow: 
+      0 0 20px rgba(6, 182, 212, 0.5),
+      0 0 40px rgba(6, 182, 212, 0.3);
+  }
+  100% { 
+    box-shadow: 
+      0 0 30px rgba(6, 182, 212, 0.7),
+      0 0 60px rgba(6, 182, 212, 0.5);
+  }
+}`}</code>
+                    </pre>
+                  </div>
+
+                  {/* Copy Button */}
+                  <div className="px-4 py-3 border-t border-white/5">
+                    <button className="w-full py-2 text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg transition-colors flex items-center justify-center gap-2">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                       </svg>
-                      Generate Animation
+                      Copy Code
                     </button>
                   </div>
                 </div>
               </div>
 
-              {/* Bottom Timeline */}
-              <div className="bg-zinc-950/90 border-t border-white/5 px-4 py-3">
+              {/* Bottom Status Bar */}
+              <div className="bg-zinc-950/90 border-t border-white/5 px-4 py-2 flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  {/* Playback Controls */}
-                  <div className="flex items-center gap-2">
-                    <button className="p-1.5 hover:bg-white/5 rounded transition-colors">
-                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-                      </svg>
-                    </button>
-                    <button className="p-1.5 bg-pink-600 hover:bg-pink-700 rounded transition-colors">
-                      <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M8 5v14l11-7z" />
-                      </svg>
-                    </button>
-                    <button className="p-1.5 hover:bg-white/5 rounded transition-colors">
-                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                      </svg>
-                    </button>
-                  </div>
-
-                  {/* Timeline Ruler */}
-                  <div className="flex-1 bg-zinc-900 rounded overflow-hidden h-12 relative">
-                    <div className="absolute inset-0 flex items-center">
-                      {Array.from({ length: 20 }).map((_, i) => (
-                        <div key={i} className="flex-1 border-l border-white/5 h-full relative">
-                          {i % 5 === 0 && (
-                            <span className="absolute top-1 left-1 text-[10px] text-gray-600">{i / 2}s</span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                    {/* Playhead */}
-                    <div className="absolute top-0 bottom-0 left-1/4 w-0.5 bg-pink-500">
-                      <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-pink-500 rounded-sm"></div>
-                    </div>
-                  </div>
-
-                  {/* Timeline Controls */}
-                  <div className="text-xs text-gray-500 font-mono">0:02.5 / 0:10.0</div>
+                  <span className="text-xs text-gray-500">CSS Animation</span>
+                  <span className="text-xs text-green-400 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>
+                    Ready
+                  </span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-xs text-gray-500">Output: 0.8 KB</span>
+                  <span className="text-xs text-gray-500">0ms render</span>
                 </div>
               </div>
+            </div>
+
+            {/* Feature Highlights */}
+            <div className="grid grid-cols-4 gap-4 mt-8">
+              {[
+                { icon: '⚡', title: 'CSS Animation', desc: 'Zero GPU, instant results', color: 'cyan' },
+                { icon: '🎨', title: 'SVG Animation', desc: 'Vector-based quality', color: 'green' },
+                { icon: '🖼️', title: 'GIF Generator', desc: 'Easy to share anywhere', color: 'pink' },
+                { icon: '🎬', title: 'Video (MP4)', desc: 'Professional AI studio', color: 'purple' },
+              ].map((feature, idx) => (
+                <div key={idx} className={`bg-zinc-900/50 backdrop-blur-sm rounded-xl p-4 border border-white/5 hover:border-${feature.color}-500/30 transition-colors text-center`}>
+                  <div className="text-2xl mb-2">{feature.icon}</div>
+                  <h4 className="text-sm font-semibold text-white mb-1">{feature.title}</h4>
+                  <p className="text-xs text-gray-500">{feature.desc}</p>
+                </div>
+              ))}
             </div>
           </div>
         </div>
