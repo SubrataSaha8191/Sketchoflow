@@ -153,7 +153,7 @@ const StyledWrapper = styled.div`
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background: #f0f0f0;
+    background: #3f3f46;
     border: none;
     cursor: pointer;
     display: flex;
@@ -161,24 +161,24 @@ const StyledWrapper = styled.div`
     justify-content: center;
     transition: all 0.2s ease;
     z-index: 10;
-    color: #666;
+    color: #a1a1aa;
   }
 
   .close-btn:hover {
     transform: scale(1.1);
-    background: #e0e0e0;
-    color: #333;
+    background: #52525b;
+    color: #fff;
   }
 
   .container {
     position: relative;
     max-width: 350px;
-    background: #F8F9FD;
-    background: linear-gradient(0deg, rgb(255, 255, 255) 0%, rgb(244, 247, 251) 100%);
+    background: #18181b;
+    background: linear-gradient(0deg, #18181b 0%, #27272a 100%);
     border-radius: 40px;
     padding: 25px 35px;
-    border: 5px solid rgb(255, 255, 255);
-    box-shadow: rgba(133, 189, 215, 0.8784313725) 0px 30px 30px -20px;
+    border: 2px solid #3f3f46;
+    box-shadow: rgba(128, 90, 213, 0.25) 0px 30px 30px -20px;
     margin: 20px;
   }
 
@@ -186,7 +186,7 @@ const StyledWrapper = styled.div`
     text-align: center;
     font-weight: 900;
     font-size: 30px;
-    color: rgb(16, 137, 211);
+    color: #a855f7;
   }
 
   .form {
@@ -195,26 +195,27 @@ const StyledWrapper = styled.div`
 
   .form .input {
     width: 100%;
-    background: white;
+    background: #27272a;
     border: none;
     padding: 15px 20px;
     border-radius: 20px;
     margin-top: 15px;
-    box-shadow: #cff0ff 0px 10px 10px -5px;
+    box-shadow: rgba(128, 90, 213, 0.15) 0px 10px 10px -5px;
     border-inline: 2px solid transparent;
+    color: #fff;
   }
 
   .form .input::-moz-placeholder {
-    color: rgb(170, 170, 170);
+    color: #71717a;
   }
 
   .form .input::placeholder {
-    color: rgb(170, 170, 170);
+    color: #71717a;
   }
 
   .form .input:focus {
     outline: none;
-    border-inline: 2px solid #12B1D1;
+    border-inline: 2px solid #a855f7;
   }
 
   .form .forgot-password {
@@ -225,7 +226,7 @@ const StyledWrapper = styled.div`
 
   .form .forgot-password a {
     font-size: 11px;
-    color: #0099ff;
+    color: #a855f7;
     text-decoration: none;
   }
 
@@ -233,24 +234,25 @@ const StyledWrapper = styled.div`
     display: block;
     width: 100%;
     font-weight: bold;
-    background: linear-gradient(45deg, rgb(16, 137, 211) 0%, rgb(18, 177, 209) 100%);
+    background: linear-gradient(45deg, #7c3aed 0%, #a855f7 100%);
     color: white;
     padding-block: 15px;
     margin: 20px auto;
     border-radius: 20px;
-    box-shadow: rgba(133, 189, 215, 0.8784313725) 0px 20px 10px -15px;
+    box-shadow: rgba(168, 85, 247, 0.4) 0px 20px 10px -15px;
     border: none;
     transition: all 0.2s ease-in-out;
+    cursor: pointer;
   }
 
   .form .login-button:hover {
     transform: scale(1.03);
-    box-shadow: rgba(133, 189, 215, 0.8784313725) 0px 23px 10px -20px;
+    box-shadow: rgba(168, 85, 247, 0.5) 0px 23px 10px -20px;
   }
 
   .form .login-button:active {
     transform: scale(0.95);
-    box-shadow: rgba(133, 189, 215, 0.8784313725) 0px 15px 10px -10px;
+    box-shadow: rgba(168, 85, 247, 0.4) 0px 15px 10px -10px;
   }
 
   .social-account-container {
@@ -261,7 +263,7 @@ const StyledWrapper = styled.div`
     display: block;
     text-align: center;
     font-size: 10px;
-    color: rgb(170, 170, 170);
+    color: #71717a;
   }
 
   .social-account-container .social-accounts {
@@ -273,25 +275,29 @@ const StyledWrapper = styled.div`
   }
 
   .social-account-container .social-accounts .social-button {
-    background: linear-gradient(45deg, rgb(0, 0, 0) 0%, rgb(112, 112, 112) 100%);
-    border: 5px solid white;
+    background: linear-gradient(45deg, #3f3f46 0%, #52525b 100%);
+    border: 3px solid #27272a;
     padding: 5px;
     border-radius: 50%;
     width: 40px;
     aspect-ratio: 1;
     display: grid;
     place-content: center;
-    box-shadow: rgba(133, 189, 215, 0.8784313725) 0px 12px 10px -8px;
+    box-shadow: rgba(128, 90, 213, 0.2) 0px 12px 10px -8px;
     transition: all 0.2s ease-in-out;
   }
 
   .social-account-container .social-accounts .social-button .svg {
-    fill: white;
+    fill: #a1a1aa;
     margin: auto;
   }
 
   .social-account-container .social-accounts .social-button:hover {
     transform: scale(1.2);
+  }
+
+  .social-account-container .social-accounts .social-button:hover .svg {
+    fill: #fff;
   }
 
   .social-account-container .social-accounts .social-button:active {
@@ -306,7 +312,7 @@ const StyledWrapper = styled.div`
 
   .agreement a {
     text-decoration: none;
-    color: #0099ff;
+    color: #a855f7;
     font-size: 9px;
   }
 
@@ -314,13 +320,13 @@ const StyledWrapper = styled.div`
     text-align: center;
     margin-top: 15px;
     font-size: 12px;
-    color: #666;
+    color: #a1a1aa;
   }
 
   .toggle-mode button {
     background: none;
     border: none;
-    color: #0099ff;
+    color: #a855f7;
     cursor: pointer;
     font-size: 12px;
     font-weight: 600;

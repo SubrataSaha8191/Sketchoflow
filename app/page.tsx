@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Upload, Sparkles, Wand2, ImagePlus, Loader2 } from "lucide-react";
+import { Upload, Sparkles, Wand2, ImagePlus, Loader2, Pencil, Bot, Zap, Play, Palette, Image, Video, RefreshCw } from "lucide-react";
 import LaserFlow from "@/components/LaserFlow";
 import LightRays from "@/components/LightRays";
 import GenerateButton from "@/components/GenerateButton";
@@ -20,6 +20,11 @@ import TryAnimationStudio from "@/components/TryAnimationStudio";
 import SketchCanvas, { SketchCanvasRef } from "@/components/SketchCanvas";
 import AuthPopup from "@/components/AuthPopup";
 import Loader from "@/components/Loader";
+import { SplineScene } from "@/components/ui/splite";
+import RotatingText from "@/components/RotatingText";
+import SocialButtons from "@/components/SocialButtons";
+import StartFree from "@/components/StartFree";
+import Explore from "@/components/Explore";
 
 export default function Home() {
   const [loading, setLoading] = useState(false);
@@ -38,13 +43,117 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sketchCanvasRef = useRef<SketchCanvasRef>(null);
   
+  // Animation Studio State
+  const [studioTab, setStudioTab] = useState<'css' | 'svg' | 'gif' | 'video'>('css');
+  const [studioPrompt, setStudioPrompt] = useState("");
+  const [studioDuration, setStudioDuration] = useState("1.5");
+  const [studioEasing, setStudioEasing] = useState("ease-in-out");
+  const [studioLoading, setStudioLoading] = useState(false);
+  const [studioCode, setStudioCode] = useState<{ css?: string; html?: string; react?: string; svg?: string } | null>(null);
+  const [studioCodeTab, setStudioCodeTab] = useState<'css' | 'html' | 'react' | 'svg'>('css');
+  const [studioBackground, setStudioBackground] = useState<'Dark' | 'Light' | 'Grid' | 'None'>('Grid');
+  const [studioMediaUrl, setStudioMediaUrl] = useState<string | null>(null);
+  const [studioError, setStudioError] = useState<string | null>(null);
+  const [studioAspectRatio, setStudioAspectRatio] = useState("16:9");
+  
   // Section refs for intersection observer
   const heroSectionRef = useRef<HTMLDivElement>(null);
   const workspaceSectionRef = useRef<HTMLDivElement>(null);
   const developmentSectionRef = useRef<HTMLDivElement>(null);
   const studioSectionRef = useRef<HTMLDivElement>(null);
+  const conclusionSectionRef = useRef<HTMLDivElement>(null);
   
   const { setButtonTheme } = useTheme();
+
+  // Animation Studio API call function
+  const generateAnimation = async () => {
+    if (!studioPrompt.trim()) return;
+    
+    setStudioLoading(true);
+    setStudioError(null);
+    setStudioCode(null);
+    setStudioMediaUrl(null);
+    
+    try {
+      if (studioTab === 'css' || studioTab === 'svg') {
+        // Use Groq API for CSS/SVG generation
+        const response = await fetch('/api/animation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: studioTab,
+            prompt: studioPrompt,
+            duration: `${studioDuration}s`,
+            easing: studioEasing
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          setStudioCode(data.code);
+          if (studioTab === 'svg') {
+            setStudioCodeTab('svg');
+          } else {
+            setStudioCodeTab('css');
+          }
+        } else {
+          setStudioError(data.error || 'Failed to generate animation');
+        }
+      } else {
+        // Use fal.ai/Runway for GIF/Video generation
+        const response = await fetch('/api/media', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: studioTab,
+            prompt: studioPrompt,
+            duration: parseInt(studioDuration),
+            aspectRatio: studioAspectRatio
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          setStudioMediaUrl(data.url);
+        } else {
+          setStudioError(data.error || 'Failed to generate media');
+        }
+      }
+    } catch (error: any) {
+      setStudioError(error.message || 'Failed to connect to AI service');
+    } finally {
+      setStudioLoading(false);
+    }
+  };
+
+  // Copy code to clipboard
+  const copyStudioCode = () => {
+    if (!studioCode) return;
+    const codeToCopy = studioCodeTab === 'svg' ? studioCode.svg || '' : studioCode[studioCodeTab] || '';
+    navigator.clipboard.writeText(codeToCopy);
+  };
+
+  // Quick prompts for animation studio
+  const applyQuickPrompt = (quickPrompt: string) => {
+    setStudioPrompt(prev => prev ? `${prev} with ${quickPrompt.toLowerCase()} effect` : `Create a ${quickPrompt.toLowerCase()} animation`);
+  };
+
+  // Get preview background style
+  const getPreviewBgStyle = () => {
+    switch (studioBackground) {
+      case 'Light': return { backgroundColor: '#ffffff' };
+      case 'Dark': return { backgroundColor: '#0a0a0a' };
+      case 'Grid': return {
+        backgroundColor: '#0a0a0a',
+        backgroundImage: 'linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)',
+        backgroundSize: '20px 20px'
+      };
+      case 'None': return { backgroundColor: 'transparent' };
+      default: return {};
+    }
+  };
 
   // Gemini API call function
   const callGeminiAPI = async (mode: 'generate' | 'sketch' | 'transform', imageData?: string | File) => {
@@ -131,6 +240,7 @@ export default function Home() {
       { ref: workspaceSectionRef, theme: 'blue' },
       { ref: developmentSectionRef, theme: 'green' },
       { ref: studioSectionRef, theme: 'pink' },
+      { ref: conclusionSectionRef, theme: 'gold' },
     ];
 
     // Track which sections are currently intersecting and their ratios
@@ -1093,7 +1203,7 @@ export default function Home() {
             <div className="text-center mb-16 space-y-6">
               
               <h2 className="text-5xl md:text-6xl font-extrabold" style={{ fontFamily: 'var(--font-heading)' }}>
-                Your <span className="bg-linear-to-r from-pink-500 via-purple-500 to-violet-500 bg-clip-text text-transparent">Animation</span> Workspace
+                Your <span className="bg-linear-to-r from-violet-500 via-purple-400 to-violet-500 bg-clip-text text-transparent">Animation</span> Workspace
               </h2>
               <p className="text-xl text-gray-400 max-w-3xl mx-auto font-normal tracking-wide">
                 Four powerful tools in one unified interface. Create CSS, SVG, GIF, and Video animations with AI.
@@ -1112,22 +1222,53 @@ export default function Home() {
                   </div>
                   {/* 4 Feature Tabs */}
                   <div className="flex items-center gap-1 bg-zinc-900/50 rounded-lg p-1">
-                    <button className="px-4 py-1.5 text-xs font-medium bg-cyan-600 text-white rounded-md transition-colors">
+                    <button 
+                      onClick={() => { setStudioTab('css'); setStudioCode(null); setStudioMediaUrl(null); setStudioError(null); }}
+                      className={`px-4 py-1.5 text-xs font-medium rounded-md transition-colors ${studioTab === 'css' ? 'bg-cyan-600 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                    >
                       CSS
                     </button>
-                    <button className="px-4 py-1.5 text-xs font-medium text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-colors">
+                    <button 
+                      onClick={() => { setStudioTab('svg'); setStudioCode(null); setStudioMediaUrl(null); setStudioError(null); }}
+                      className={`px-4 py-1.5 text-xs font-medium rounded-md transition-colors ${studioTab === 'svg' ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                    >
                       SVG
                     </button>
-                    <button className="px-4 py-1.5 text-xs font-medium text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-colors">
+                    <button 
+                      onClick={() => { setStudioTab('gif'); setStudioCode(null); setStudioMediaUrl(null); setStudioError(null); }}
+                      className={`px-4 py-1.5 text-xs font-medium rounded-md transition-colors ${studioTab === 'gif' ? 'bg-pink-600 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                    >
                       GIF
                     </button>
-                    <button className="px-4 py-1.5 text-xs font-medium text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-colors">
+                    <button 
+                      onClick={() => { setStudioTab('video'); setStudioCode(null); setStudioMediaUrl(null); setStudioError(null); }}
+                      className={`px-4 py-1.5 text-xs font-medium rounded-md transition-colors ${studioTab === 'video' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                    >
                       Video
                     </button>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button className="px-3 py-1 text-xs bg-pink-600 hover:bg-pink-700 text-white rounded transition-colors">
+                  <button 
+                    onClick={() => {
+                      if (studioMediaUrl) {
+                        const link = document.createElement('a');
+                        link.href = studioMediaUrl;
+                        link.download = `animation.${studioTab === 'gif' ? 'gif' : 'mp4'}`;
+                        link.click();
+                      } else if (studioCode) {
+                        const blob = new Blob([studioCode.css || studioCode.svg || ''], { type: 'text/plain' });
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = `animation.${studioTab}`;
+                        link.click();
+                        URL.revokeObjectURL(url);
+                      }
+                    }}
+                    disabled={!studioCode && !studioMediaUrl}
+                    className="px-3 py-1 text-xs bg-pink-600 hover:bg-pink-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded transition-colors"
+                  >
                     Export
                   </button>
                 </div>
@@ -1140,8 +1281,15 @@ export default function Home() {
                   <div className="mb-4">
                     <label className="text-xs font-medium text-gray-400 mb-2 block">Describe your animation</label>
                     <textarea 
+                      value={studioPrompt}
+                      onChange={(e) => setStudioPrompt(e.target.value)}
                       className="w-full h-32 bg-zinc-900 border border-white/10 rounded-lg px-4 py-3 text-sm text-gray-300 placeholder-gray-500 resize-none focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50"
-                      placeholder="Make a bouncing glowing button animation with a pulsing cyan shadow..."
+                      placeholder={
+                        studioTab === 'css' ? "Make a bouncing glowing button animation with a pulsing cyan shadow..." :
+                        studioTab === 'svg' ? "Create an animated loading spinner with rotating circles..." :
+                        studioTab === 'gif' ? "A cute cat playing with a ball of yarn, playful movement..." :
+                        "A serene ocean sunset with waves gently rolling onto the beach..."
+                      }
                     />
                   </div>
 
@@ -1149,49 +1297,78 @@ export default function Home() {
                   <div className="mb-4">
                     <label className="text-xs font-medium text-gray-400 mb-2 block">Quick Prompts</label>
                     <div className="flex flex-wrap gap-2">
-                      {['Bounce', 'Pulse', 'Shake', 'Fade', 'Slide', 'Glow'].map((prompt) => (
+                      {(studioTab === 'css' || studioTab === 'svg' 
+                        ? ['Bounce', 'Pulse', 'Shake', 'Fade', 'Slide', 'Glow', 'Spin', 'Wave']
+                        : ['Cinematic', 'Slow-mo', 'Loop', 'Zoom', 'Pan', 'Dreamy']
+                      ).map((quickPrompt) => (
                         <button
-                          key={prompt}
+                          key={quickPrompt}
+                          onClick={() => applyQuickPrompt(quickPrompt)}
                           className="px-2.5 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-gray-400 hover:text-white rounded-full border border-white/5 transition-colors"
                         >
-                          {prompt}
+                          {quickPrompt}
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  {/* Duration & Easing */}
+                  {/* Duration & Easing / Aspect Ratio */}
                   <div className="space-y-4 mb-4">
                     <div>
-                      <label className="text-xs font-medium text-gray-400 mb-2 block">Duration: 1.5s</label>
+                      <label className="text-xs font-medium text-gray-400 mb-2 block">
+                        Duration: {studioDuration}{studioTab === 'css' || studioTab === 'svg' ? 's' : ' seconds'}
+                      </label>
                       <input 
                         type="range" 
-                        min="0.1" 
-                        max="5" 
-                        step="0.1" 
-                        defaultValue="1.5"
-                        className="w-full accent-cyan-500"
+                        min={studioTab === 'gif' || studioTab === 'video' ? "2" : "0.1"}
+                        max={studioTab === 'gif' || studioTab === 'video' ? "10" : "5"}
+                        step={studioTab === 'gif' || studioTab === 'video' ? "1" : "0.1"}
+                        value={studioDuration}
+                        onChange={(e) => setStudioDuration(e.target.value)}
+                        className={`w-full ${studioTab === 'css' ? 'accent-cyan-500' : studioTab === 'svg' ? 'accent-green-500' : studioTab === 'gif' ? 'accent-pink-500' : 'accent-purple-500'}`}
                       />
                     </div>
-                    <div>
-                      <label className="text-xs font-medium text-gray-400 mb-2 block">Easing</label>
-                      <select className="w-full bg-zinc-900 border border-white/10 rounded px-3 py-2 text-sm text-gray-300 focus:outline-none focus:ring-1 focus:ring-cyan-500">
-                        <option>ease-in-out</option>
-                        <option>linear</option>
-                        <option>ease-in</option>
-                        <option>ease-out</option>
-                        <option>cubic-bezier</option>
-                      </select>
-                    </div>
+                    {(studioTab === 'css' || studioTab === 'svg') ? (
+                      <div>
+                        <label className="text-xs font-medium text-gray-400 mb-2 block">Easing</label>
+                        <select 
+                          value={studioEasing}
+                          onChange={(e) => setStudioEasing(e.target.value)}
+                          className="w-full bg-zinc-900 border border-white/10 rounded px-3 py-2 text-sm text-gray-300 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                        >
+                          <option>ease-in-out</option>
+                          <option>linear</option>
+                          <option>ease-in</option>
+                          <option>ease-out</option>
+                          <option>cubic-bezier(0.68, -0.55, 0.265, 1.55)</option>
+                        </select>
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="text-xs font-medium text-gray-400 mb-2 block">Aspect Ratio</label>
+                        <select 
+                          value={studioAspectRatio}
+                          onChange={(e) => setStudioAspectRatio(e.target.value)}
+                          className="w-full bg-zinc-900 border border-white/10 rounded px-3 py-2 text-sm text-gray-300 focus:outline-none focus:ring-1 focus:ring-pink-500"
+                        >
+                          <option value="16:9">16:9 (Landscape)</option>
+                          <option value="9:16">9:16 (Portrait)</option>
+                          <option value="1:1">1:1 (Square)</option>
+                        </select>
+                      </div>
+                    )}
                   </div>
 
                   {/* Generate Button */}
-                  <button className="mt-auto w-full bg-linear-to-r from-cyan-600 to-cyan-500 hover:from-cyan-700 hover:to-cyan-600 text-white font-medium py-3 rounded-lg transition-all duration-300 flex items-center justify-center gap-2">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                    Generate Animation
-                  </button>
+                  <div className="mt-auto">
+                    <GenerateButton
+                      text={studioTab === 'css' ? 'Generate CSS' : studioTab === 'svg' ? 'Generate SVG' : studioTab === 'gif' ? 'Generate GIF' : 'Generate Video'}
+                      loadingText="Generating"
+                      onClick={generateAnimation}
+                      disabled={!studioPrompt.trim()}
+                      loading={studioLoading}
+                    />
+                  </div>
                 </div>
 
                 {/* Center - Live Preview */}
@@ -1200,55 +1377,112 @@ export default function Home() {
                   <div className="px-4 py-2 border-b border-white/5 flex items-center justify-between">
                     <span className="text-xs font-medium text-gray-400">Live Preview</span>
                     <div className="flex items-center gap-2">
-                      <button className="p-1.5 hover:bg-white/5 rounded transition-colors" title="Reset">
+                      <button 
+                        onClick={() => { setStudioCode(null); setStudioMediaUrl(null); setStudioError(null); }}
+                        className="p-1.5 hover:bg-white/5 rounded transition-colors" 
+                        title="Reset"
+                      >
                         <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                      </button>
-                      <button className="p-1.5 hover:bg-white/5 rounded transition-colors" title="Fullscreen">
-                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
                         </svg>
                       </button>
                     </div>
                   </div>
 
                   {/* Preview Canvas */}
-                  <div className="flex-1 flex items-center justify-center p-8" style={{
-                    backgroundImage: 'linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)',
-                    backgroundSize: '20px 20px'
-                  }}>
-                    {/* Sample Animated Button Preview */}
-                    <div className="relative">
-                      <button 
-                        className="px-8 py-4 bg-cyan-600 text-white font-semibold rounded-xl transition-all"
-                        style={{
-                          animation: 'bounce 1s ease-in-out infinite, glow 2s ease-in-out infinite alternate',
-                          boxShadow: '0 0 20px rgba(6, 182, 212, 0.5), 0 0 40px rgba(6, 182, 212, 0.3)'
-                        }}
-                      >
-                        Animated Button
-                      </button>
-                      <style>{`
-                        @keyframes bounce {
-                          0%, 100% { transform: translateY(0); }
-                          50% { transform: translateY(-10px); }
-                        }
-                        @keyframes glow {
-                          0% { box-shadow: 0 0 20px rgba(6, 182, 212, 0.5), 0 0 40px rgba(6, 182, 212, 0.3); }
-                          100% { box-shadow: 0 0 30px rgba(6, 182, 212, 0.7), 0 0 60px rgba(6, 182, 212, 0.5); }
-                        }
-                      `}</style>
-                    </div>
+                  <div className="flex-1 flex items-center justify-center p-8 relative" style={getPreviewBgStyle()}>
+                    {/* Loading State */}
+                    {studioLoading && (
+                      <div className="absolute inset-0 bg-zinc-900/90 backdrop-blur-sm flex flex-col items-center justify-center z-10">
+                        <div className="relative w-64 h-40">
+                          <Loader />
+                        </div>
+                        <p className="text-lg font-medium text-gray-300 mt-8">
+                          {studioTab === 'css' ? 'Generating CSS Animation...' :
+                           studioTab === 'svg' ? 'Creating SVG Animation...' :
+                           studioTab === 'gif' ? 'Generating GIF...' :
+                           'Creating Video...'}
+                        </p>
+                        <p className="text-sm mt-2 text-gray-500">
+                          {studioTab === 'gif' || studioTab === 'video' ? 'This may take a few moments' : 'AI is crafting your animation'}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Error State */}
+                    {studioError && (
+                      <div className="text-center">
+                        <div className="text-red-400 mb-2">⚠️</div>
+                        <p className="text-sm text-red-400">{studioError}</p>
+                        <button 
+                          onClick={generateAnimation}
+                          className="mt-4 px-4 py-2 text-xs bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded transition-colors"
+                        >
+                          Try Again
+                        </button>
+                      </div>
+                    )}
+
+                    {/* CSS/SVG Preview */}
+                    {!studioLoading && !studioError && (studioTab === 'css' || studioTab === 'svg') && (
+                      <div className="relative">
+                        {studioCode?.svg ? (
+                          <div 
+                            className="max-w-xs max-h-64"
+                            dangerouslySetInnerHTML={{ __html: studioCode.svg }} 
+                          />
+                        ) : studioCode?.css ? (
+                          <>
+                            <div 
+                              className="animated-preview"
+                              dangerouslySetInnerHTML={{ __html: studioCode.html || '<button class="animated-element">Animated Element</button>' }}
+                            />
+                            <style>{studioCode.css}</style>
+                          </>
+                        ) : (
+                          <div className="text-center text-gray-500">
+                            <div className="text-4xl mb-4">{studioTab === 'css' ? '⚡' : '🎨'}</div>
+                            <p className="text-sm">Enter a prompt and click Generate</p>
+                            <p className="text-xs mt-2 text-gray-600">Your animation will appear here</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* GIF/Video Preview */}
+                    {!studioLoading && !studioError && (studioTab === 'gif' || studioTab === 'video') && (
+                      <div className="relative max-w-full max-h-full">
+                        {studioMediaUrl ? (
+                          studioTab === 'gif' ? (
+                            <img src={studioMediaUrl} alt="Generated GIF" className="max-w-full max-h-80 rounded-lg shadow-2xl" />
+                          ) : (
+                            <video 
+                              src={studioMediaUrl} 
+                              controls 
+                              autoPlay 
+                              loop 
+                              className="max-w-full max-h-80 rounded-lg shadow-2xl"
+                            />
+                          )
+                        ) : (
+                          <div className="text-center text-gray-500">
+                            <div className="text-4xl mb-4">{studioTab === 'gif' ? '🖼️' : '🎬'}</div>
+                            <p className="text-sm">Enter a prompt and click Generate</p>
+                            <p className="text-xs mt-2 text-gray-600">Your {studioTab === 'gif' ? 'GIF' : 'video'} will appear here</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Background Options */}
                   <div className="px-4 py-2 border-t border-white/5 flex items-center gap-2">
                     <span className="text-xs text-gray-500">Background:</span>
-                    {['Dark', 'Light', 'Grid', 'None'].map((bg) => (
+                    {(['Dark', 'Light', 'Grid', 'None'] as const).map((bg) => (
                       <button
                         key={bg}
-                        className={`px-2 py-1 text-xs rounded transition-colors ${bg === 'Grid' ? 'bg-cyan-600/20 text-cyan-400' : 'text-gray-400 hover:text-white'}`}
+                        onClick={() => setStudioBackground(bg)}
+                        className={`px-2 py-1 text-xs rounded transition-colors ${studioBackground === bg ? `${studioTab === 'css' ? 'bg-cyan-600/20 text-cyan-400' : studioTab === 'svg' ? 'bg-green-600/20 text-green-400' : studioTab === 'gif' ? 'bg-pink-600/20 text-pink-400' : 'bg-purple-600/20 text-purple-400'}` : 'text-gray-400 hover:text-white'}`}
                       >
                         {bg}
                       </button>
@@ -1260,58 +1494,102 @@ export default function Home() {
                 <div className="w-80 bg-zinc-950/50 border-l border-white/5 flex flex-col">
                   {/* Code Tabs */}
                   <div className="px-4 py-2 border-b border-white/5 flex items-center gap-1">
-                    <button className="px-3 py-1 text-xs font-medium bg-cyan-600/20 text-cyan-400 rounded transition-colors">
-                      CSS
-                    </button>
-                    <button className="px-3 py-1 text-xs font-medium text-gray-400 hover:text-white rounded transition-colors">
-                      HTML
-                    </button>
-                    <button className="px-3 py-1 text-xs font-medium text-gray-400 hover:text-white rounded transition-colors">
-                      React
-                    </button>
+                    {studioTab === 'svg' ? (
+                      <>
+                        <button 
+                          onClick={() => setStudioCodeTab('svg')}
+                          className={`px-3 py-1 text-xs font-medium rounded transition-colors ${studioCodeTab === 'svg' ? 'bg-green-600/20 text-green-400' : 'text-gray-400 hover:text-white'}`}
+                        >
+                          SVG
+                        </button>
+                        <button 
+                          onClick={() => setStudioCodeTab('react')}
+                          className={`px-3 py-1 text-xs font-medium rounded transition-colors ${studioCodeTab === 'react' ? 'bg-green-600/20 text-green-400' : 'text-gray-400 hover:text-white'}`}
+                        >
+                          React
+                        </button>
+                      </>
+                    ) : studioTab === 'css' ? (
+                      <>
+                        <button 
+                          onClick={() => setStudioCodeTab('css')}
+                          className={`px-3 py-1 text-xs font-medium rounded transition-colors ${studioCodeTab === 'css' ? 'bg-cyan-600/20 text-cyan-400' : 'text-gray-400 hover:text-white'}`}
+                        >
+                          CSS
+                        </button>
+                        <button 
+                          onClick={() => setStudioCodeTab('html')}
+                          className={`px-3 py-1 text-xs font-medium rounded transition-colors ${studioCodeTab === 'html' ? 'bg-cyan-600/20 text-cyan-400' : 'text-gray-400 hover:text-white'}`}
+                        >
+                          HTML
+                        </button>
+                        <button 
+                          onClick={() => setStudioCodeTab('react')}
+                          className={`px-3 py-1 text-xs font-medium rounded transition-colors ${studioCodeTab === 'react' ? 'bg-cyan-600/20 text-cyan-400' : 'text-gray-400 hover:text-white'}`}
+                        >
+                          React
+                        </button>
+                      </>
+                    ) : (
+                      <span className="text-xs text-gray-500 px-2">
+                        {studioTab === 'gif' ? 'GIF output will be displayed in preview' : 'Video output will be displayed in preview'}
+                      </span>
+                    )}
                   </div>
 
                   {/* Code Display */}
                   <div className="flex-1 overflow-auto p-4">
-                    <pre className="text-xs font-mono text-gray-300 leading-relaxed">
-                      <code>{`.animated-button {
-  padding: 1rem 2rem;
-  background: #0891b2;
-  color: white;
-  font-weight: 600;
-  border-radius: 0.75rem;
-  animation: 
-    bounce 1s ease-in-out infinite,
-    glow 2s ease-in-out infinite alternate;
+                    {(studioTab === 'css' || studioTab === 'svg') ? (
+                      <pre className="text-xs font-mono text-gray-300 leading-relaxed whitespace-pre-wrap">
+                        <code>
+                          {studioCode ? (
+                            studioCodeTab === 'svg' ? studioCode.svg :
+                            studioCodeTab === 'css' ? studioCode.css :
+                            studioCodeTab === 'html' ? studioCode.html :
+                            studioCode.react
+                          ) || '// No code generated yet' : `/* Enter a prompt to generate ${studioTab.toUpperCase()} code */
+
+/* Example output:
+${studioTab === 'css' ? `.animated-element {
+  animation: bounce 1s ease-in-out infinite;
 }
 
 @keyframes bounce {
-  0%, 100% { 
-    transform: translateY(0); 
-  }
-  50% { 
-    transform: translateY(-10px); 
-  }
-}
-
-@keyframes glow {
-  0% { 
-    box-shadow: 
-      0 0 20px rgba(6, 182, 212, 0.5),
-      0 0 40px rgba(6, 182, 212, 0.3);
-  }
-  100% { 
-    box-shadow: 
-      0 0 30px rgba(6, 182, 212, 0.7),
-      0 0 60px rgba(6, 182, 212, 0.5);
-  }
-}`}</code>
-                    </pre>
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}` : `<svg viewBox="0 0 200 200">
+  <circle cx="100" cy="100" r="40" fill="#06b6d4">
+    <animate attributeName="r" 
+      values="40;50;40" dur="1s" 
+      repeatCount="indefinite"/>
+  </circle>
+</svg>`}
+*/`}
+                        </code>
+                      </pre>
+                    ) : (
+                      <div className="text-center text-gray-500 py-8">
+                        <div className="text-3xl mb-4">{studioTab === 'gif' ? '🖼️' : '🎬'}</div>
+                        <p className="text-xs">
+                          {studioTab === 'gif' ? 'GIF files are visual outputs' : 'Video files are visual outputs'}
+                        </p>
+                        <p className="text-xs mt-2 text-gray-600">
+                          Use the Export button to download
+                        </p>
+                        {studioMediaUrl && (
+                          <p className="text-xs mt-4 text-green-400">✓ Ready to export</p>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Copy Button */}
                   <div className="px-4 py-3 border-t border-white/5">
-                    <button className="w-full py-2 text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-gray-300 rounded-lg transition-colors flex items-center justify-center gap-2">
+                    <button 
+                      onClick={copyStudioCode}
+                      disabled={!studioCode || (studioTab !== 'css' && studioTab !== 'svg')}
+                      className="w-full py-2 text-xs font-medium bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-900 disabled:text-gray-600 disabled:cursor-not-allowed text-gray-300 rounded-lg transition-colors flex items-center justify-center gap-2"
+                    >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                       </svg>
@@ -1324,29 +1602,37 @@ export default function Home() {
               {/* Bottom Status Bar */}
               <div className="bg-zinc-950/90 border-t border-white/5 px-4 py-2 flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <span className="text-xs text-gray-500">CSS Animation</span>
-                  <span className="text-xs text-green-400 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>
-                    Ready
+                  <span className="text-xs text-gray-500">
+                    {studioTab === 'css' ? 'CSS Animation' : studioTab === 'svg' ? 'SVG Animation' : studioTab === 'gif' ? 'GIF Generation' : 'Video Generation'}
+                  </span>
+                  <span className={`text-xs flex items-center gap-1 ${studioLoading ? 'text-yellow-400' : studioError ? 'text-red-400' : 'text-green-400'}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${studioLoading ? 'bg-yellow-400 animate-pulse' : studioError ? 'bg-red-400' : 'bg-green-400'}`}></span>
+                    {studioLoading ? 'Generating...' : studioError ? 'Error' : 'Ready'}
                   </span>
                 </div>
                 <div className="flex items-center gap-4">
-                  <span className="text-xs text-gray-500">Output: 0.8 KB</span>
-                  <span className="text-xs text-gray-500">0ms render</span>
+                  <span className="text-xs text-gray-500">
+                    {studioCode ? `Output: ${((studioCode.css || studioCode.svg || '').length / 1024).toFixed(1)} KB` : studioMediaUrl ? 'Media ready' : 'No output'}
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    {studioTab === 'css' || studioTab === 'svg' ? 'Powered by Groq' : 'Powered by Runway'}
+                  </span>
                 </div>
               </div>
             </div>
 
-            {/* Feature Highlights */}
+            {/* Feature Highlights with Lucide Icons */}
             <div className="grid grid-cols-4 gap-4 mt-8">
               {[
-                { icon: '⚡', title: 'CSS Animation', desc: 'Zero GPU, instant results', color: 'cyan' },
-                { icon: '🎨', title: 'SVG Animation', desc: 'Vector-based quality', color: 'green' },
-                { icon: '🖼️', title: 'GIF Generator', desc: 'Easy to share anywhere', color: 'pink' },
-                { icon: '🎬', title: 'Video (MP4)', desc: 'Professional AI studio', color: 'purple' },
+                { Icon: Zap, title: 'CSS Animation', desc: 'Zero GPU, instant results', color: 'text-cyan-400', hoverClass: 'hover:border-cyan-500/30' },
+                { Icon: Palette, title: 'SVG Animation', desc: 'Vector-based quality', color: 'text-green-400', hoverClass: 'hover:border-green-500/30' },
+                { Icon: Image, title: 'GIF Generator', desc: 'Easy to share anywhere', color: 'text-pink-400', hoverClass: 'hover:border-pink-500/30' },
+                { Icon: Video, title: 'Video (MP4)', desc: 'Professional AI studio', color: 'text-purple-400', hoverClass: 'hover:border-purple-500/30' },
               ].map((feature, idx) => (
-                <div key={idx} className={`bg-zinc-900/50 backdrop-blur-sm rounded-xl p-4 border border-white/5 hover:border-${feature.color}-500/30 transition-colors text-center`}>
-                  <div className="text-2xl mb-2">{feature.icon}</div>
+                <div key={idx} className={`bg-zinc-900/50 backdrop-blur-sm rounded-xl p-4 border border-white/5 ${feature.hoverClass} transition-colors text-center`}>
+                  <div className="flex justify-center mb-2">
+                    <feature.Icon className={`w-6 h-6 ${feature.color}`} />
+                  </div>
                   <h4 className="text-sm font-semibold text-white mb-1">{feature.title}</h4>
                   <p className="text-xs text-gray-500">{feature.desc}</p>
                 </div>
@@ -1355,6 +1641,155 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* ========== SECTION 5: CONCLUSION ========== */}
+      <section ref={conclusionSectionRef} className="relative min-h-screen bg-black pt-24 pb-0 overflow-hidden">
+        {/* Top Gradient Transition - pure black blend */}
+        <div className="absolute inset-x-0 top-0 h-40 bg-black pointer-events-none z-10" />
+
+        {/* 3D Robot - with CSS mask for seamless bottom fade, pointer-events-auto for cursor tracking */}
+        <div 
+          className="absolute right-0 top-[8%] w-[60%] h-full z-5 pointer-events-auto"
+          style={{
+            maskImage: 'linear-gradient(to bottom, black 0%, black 50%, transparent 75%)',
+            WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 50%, transparent 75%)',
+          }}
+        >
+          <SplineScene 
+            scene="https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode"
+            className="w-full h-full scale-[0.75] origin-top-right"
+          />
+        </div>
+
+        {/* Content Container */}
+        <div className="relative z-10 min-h-screen flex items-center pointer-events-none">
+          {/* Left Side - Text Content */}
+          <div className="w-full lg:w-[45%] px-8 md:px-16 lg:px-20 py-20 pointer-events-auto">
+            {/* Main Headline with Rotating Text - Gray Gradient Style */}
+            <div className="text-2xl md:text-3xl lg:text-5xl font-bold text-white leading-tight mb-6" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+              <div>Empower Creativity</div>
+              <div className="flex items-center gap-3 mt-2">
+                <span>to</span>
+                <RotatingText
+                  texts={['Sketch','Generate','Animate', 'Export', 'Share', 'Love']}
+                  mainClassName="inline-flex px-3 py-1 bg-gradient-to-r from-zinc-800 via-yellow-200 to-zinc-800 text-zinc-900 rounded-lg overflow-hidden"
+                />
+              </div>
+            </div>
+
+            {/* Subtitle with ShinyText */}
+            <div className="text-base md:text-lg mb-8 max-w-lg leading-relaxed">
+              <ShinyText 
+                text="Sketchoflow transforms your rough sketches into polished animations. Generate CSS, SVG, GIF, and video animations with AI — no design experience needed. Your imagination is the only limit."
+                speed={3}
+                className="text-gray-600!"
+              />
+            </div>
+
+            {/* Feature Points with Lucide Icons */}
+            <div className="flex flex-wrap gap-3 mb-10">
+              {[
+                { icon: Pencil, text: 'Sketch to Animation', color: 'text-violet-400' },
+                { icon: Bot, text: 'AI-Powered Generation', color: 'text-cyan-400' },
+                { icon: Zap, text: 'Instant Export', color: 'text-amber-400' },
+                { icon: RefreshCw, text: 'Image to Transform', color: 'text-pink-400' },
+              ].map((item, idx) => (
+                <div key={idx} className="flex items-center gap-2.5 bg-zinc-900/80 backdrop-blur-sm border border-white/10 rounded-full px-5 py-2.5">
+                  <item.icon className={`w-4 h-4 ${item.color}`} />
+                  <span className="text-sm font-medium text-gray-200">{item.text}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* CTA Buttons */}
+            <div className="flex flex-wrap items-center gap-4">
+              <StartFree text="Start Creating Free" />
+              <Explore 
+                text="Explore Features" 
+                onClick={() => workspaceSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
+              />
+            </div>
+
+            {/* Trust Badge */}
+            <p className="mt-10 text-sm text-gray-500">
+              Join <span className="text-white font-medium">10,000+</span> creators already using Sketchoflow
+            </p>
+          </div>
+        </div>
+
+        {/* Bottom Fade */}
+        <div className="absolute inset-x-0 bottom-0 h-32 bg-linear-to-t from-black to-transparent pointer-events-none z-20" />
+      </section>
+
+      {/* ========== FOOTER ========== */}
+      <footer className="relative bg-black pt-20 pb-10">
+        {/* Top border glow */}
+        <div className="absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-violet-500/50 to-transparent" />
+        
+        <div className="max-w-7xl mx-auto px-8 md:px-16 lg:px-20">
+          {/* Footer Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-16">
+            {/* Brand Column */}
+            <div className="col-span-2 md:col-span-1">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-linear-to-br from-violet-600 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/25">
+                  <Sparkles className="w-5 h-5 text-white" />
+                </div>
+                <span className="text-xl font-bold text-white">SketchoFlow</span>
+              </div>
+              <p className="text-sm text-gray-500 leading-relaxed">
+                Transform your creative ideas into stunning animations with the power of AI.
+              </p>
+            </div>
+
+            {/* Product Column */}
+            <div>
+              <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">Product</h4>
+              <ul className="space-y-3">
+                {['Features', 'Pricing', 'Templates', 'Integrations'].map((item) => (
+                  <li key={item}>
+                    <a href="#" className="text-sm text-gray-500 hover:text-white transition-colors">{item}</a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Resources Column */}
+            <div>
+              <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">Resources</h4>
+              <ul className="space-y-3">
+                {['Documentation', 'Tutorials', 'Blog', 'Community'].map((item) => (
+                  <li key={item}>
+                    <a href="#" className="text-sm text-gray-500 hover:text-white transition-colors">{item}</a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Company Column */}
+            <div>
+              <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">Company</h4>
+              <ul className="space-y-3">
+                {['About', 'Careers', 'Contact', 'Privacy'].map((item) => (
+                  <li key={item}>
+                    <a href="#" className="text-sm text-gray-500 hover:text-white transition-colors">{item}</a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          {/* Bottom Bar */}
+          <div className="flex flex-col md:flex-row items-center justify-between pt-8 border-t border-white/10">
+            <p className="text-sm text-gray-600">
+              © 2025 SketchoFlow. All rights reserved.
+            </p>
+            <div className="mt-4 md:mt-0">
+              <SocialButtons />
+            </div>
+          </div>
+        </div>
+      </footer>
     </main>
   );
 }
