@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import styled from 'styled-components';
+import { useTheme, ColorTheme } from '../context/ThemeContext';
 
 interface AuthPopupProps {
   isOpen: boolean;
@@ -9,8 +10,44 @@ interface AuthPopupProps {
   onToggleMode: () => void;
 }
 
+// Color configurations for each theme
+const themeColors: Record<ColorTheme, { primary: string; secondary: string; shadow: string; gradient: string }> = {
+  purple: {
+    primary: '#a855f7',
+    secondary: '#7c3aed',
+    shadow: 'rgba(168, 85, 247, 0.4)',
+    gradient: 'linear-gradient(45deg, #7c3aed 0%, #a855f7 100%)'
+  },
+  blue: {
+    primary: '#3b82f6',
+    secondary: '#2563eb',
+    shadow: 'rgba(59, 130, 246, 0.4)',
+    gradient: 'linear-gradient(45deg, #2563eb 0%, #3b82f6 100%)'
+  },
+  gold: {
+    primary: '#f59e0b',
+    secondary: '#d97706',
+    shadow: 'rgba(245, 158, 11, 0.4)',
+    gradient: 'linear-gradient(45deg, #d97706 0%, #f59e0b 100%)'
+  },
+  green: {
+    primary: '#10b981',
+    secondary: '#059669',
+    shadow: 'rgba(16, 185, 129, 0.4)',
+    gradient: 'linear-gradient(45deg, #059669 0%, #10b981 100%)'
+  },
+  pink: {
+    primary: '#ec4899',
+    secondary: '#db2777',
+    shadow: 'rgba(236, 72, 153, 0.4)',
+    gradient: 'linear-gradient(45deg, #db2777 0%, #ec4899 100%)'
+  }
+};
+
 const AuthPopup: React.FC<AuthPopupProps> = ({ isOpen, onClose, mode, onToggleMode }) => {
   const [mounted, setMounted] = useState(false);
+  const { buttonTheme } = useTheme();
+  const colors = themeColors[buttonTheme];
 
   // Mount check for portal
   useEffect(() => {
@@ -35,7 +72,12 @@ const AuthPopup: React.FC<AuthPopupProps> = ({ isOpen, onClose, mode, onToggleMo
   if (!isOpen || !mounted) return null;
 
   const popupContent = (
-    <StyledWrapper>
+    <StyledWrapper 
+      $primaryColor={colors.primary}
+      $secondaryColor={colors.secondary}
+      $shadowColor={colors.shadow}
+      $gradient={colors.gradient}
+    >
       <div className="modal-backdrop" onClick={onClose} />
       <div className="modal-container" onClick={(e) => e.stopPropagation()}>
         <div className="container">
@@ -97,7 +139,14 @@ const AuthPopup: React.FC<AuthPopupProps> = ({ isOpen, onClose, mode, onToggleMo
   return createPortal(popupContent, document.body);
 }
 
-const StyledWrapper = styled.div`
+interface StyledWrapperProps {
+  $primaryColor: string;
+  $secondaryColor: string;
+  $shadowColor: string;
+  $gradient: string;
+}
+
+const StyledWrapper = styled.div<StyledWrapperProps>`
   position: fixed;
   top: 0;
   left: 0;
@@ -178,7 +227,7 @@ const StyledWrapper = styled.div`
     border-radius: 40px;
     padding: 25px 35px;
     border: 2px solid #3f3f46;
-    box-shadow: rgba(128, 90, 213, 0.25) 0px 30px 30px -20px;
+    box-shadow: ${props => props.$shadowColor} 0px 30px 30px -20px;
     margin: 20px;
   }
 
@@ -186,7 +235,7 @@ const StyledWrapper = styled.div`
     text-align: center;
     font-weight: 900;
     font-size: 30px;
-    color: #a855f7;
+    color: ${props => props.$primaryColor};
   }
 
   .form {
@@ -200,7 +249,7 @@ const StyledWrapper = styled.div`
     padding: 15px 20px;
     border-radius: 20px;
     margin-top: 15px;
-    box-shadow: rgba(128, 90, 213, 0.15) 0px 10px 10px -5px;
+    box-shadow: ${props => props.$shadowColor.replace('0.4', '0.15')} 0px 10px 10px -5px;
     border-inline: 2px solid transparent;
     color: #fff;
   }
@@ -215,7 +264,7 @@ const StyledWrapper = styled.div`
 
   .form .input:focus {
     outline: none;
-    border-inline: 2px solid #a855f7;
+    border-inline: 2px solid ${props => props.$primaryColor};
   }
 
   .form .forgot-password {
@@ -226,7 +275,7 @@ const StyledWrapper = styled.div`
 
   .form .forgot-password a {
     font-size: 11px;
-    color: #a855f7;
+    color: ${props => props.$primaryColor};
     text-decoration: none;
   }
 
@@ -234,12 +283,12 @@ const StyledWrapper = styled.div`
     display: block;
     width: 100%;
     font-weight: bold;
-    background: linear-gradient(45deg, #7c3aed 0%, #a855f7 100%);
+    background: ${props => props.$gradient};
     color: white;
     padding-block: 15px;
     margin: 20px auto;
     border-radius: 20px;
-    box-shadow: rgba(168, 85, 247, 0.4) 0px 20px 10px -15px;
+    box-shadow: ${props => props.$shadowColor} 0px 20px 10px -15px;
     border: none;
     transition: all 0.2s ease-in-out;
     cursor: pointer;
@@ -247,12 +296,12 @@ const StyledWrapper = styled.div`
 
   .form .login-button:hover {
     transform: scale(1.03);
-    box-shadow: rgba(168, 85, 247, 0.5) 0px 23px 10px -20px;
+    box-shadow: ${props => props.$shadowColor.replace('0.4', '0.5')} 0px 23px 10px -20px;
   }
 
   .form .login-button:active {
     transform: scale(0.95);
-    box-shadow: rgba(168, 85, 247, 0.4) 0px 15px 10px -10px;
+    box-shadow: ${props => props.$shadowColor} 0px 15px 10px -10px;
   }
 
   .social-account-container {
@@ -283,7 +332,7 @@ const StyledWrapper = styled.div`
     aspect-ratio: 1;
     display: grid;
     place-content: center;
-    box-shadow: rgba(128, 90, 213, 0.2) 0px 12px 10px -8px;
+    box-shadow: ${props => props.$shadowColor.replace('0.4', '0.2')} 0px 12px 10px -8px;
     transition: all 0.2s ease-in-out;
   }
 
@@ -312,7 +361,7 @@ const StyledWrapper = styled.div`
 
   .agreement a {
     text-decoration: none;
-    color: #a855f7;
+    color: ${props => props.$primaryColor};
     font-size: 9px;
   }
 
@@ -326,7 +375,7 @@ const StyledWrapper = styled.div`
   .toggle-mode button {
     background: none;
     border: none;
-    color: #a855f7;
+    color: ${props => props.$primaryColor};
     cursor: pointer;
     font-size: 12px;
     font-weight: 600;

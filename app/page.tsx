@@ -8,6 +8,7 @@ import LightRays from "@/components/LightRays";
 import GenerateButton from "@/components/GenerateButton";
 import JoinToday from "@/components/JoinToday";
 import AuthButtons from "@/components/AuthButtons";
+import ThemedLogo from "@/components/ThemedLogo";
 import ShinyText from "@/components/ShinyText";
 import TextType from "@/components/TextType";
 import { ContainerScroll } from "@/components/ui/container-scroll-animation";
@@ -24,7 +25,10 @@ import { SplineScene } from "@/components/ui/splite";
 import RotatingText from "@/components/RotatingText";
 import SocialButtons from "@/components/SocialButtons";
 import StartFree from "@/components/StartFree";
+import SplitText from "@/components/SplitText";
+import ScrollReveal from "@/components/ScrollReveal";
 import Explore from "@/components/Explore";
+import ScrollProgress from "@/components/Scrollbar";
 
 export default function Home() {
   const [loading, setLoading] = useState(false);
@@ -312,19 +316,17 @@ export default function Home() {
 
   return (
     <main className="min-h-screen text-white overflow-x-hidden bg-zinc-900">
+      {/* Circular Scroll Progress with Back to Top */}
+      <ScrollProgress />
+      
       {/* ========== FIXED NAVBAR - Outside all sections ========== */}
       <nav className="fixed top-6 left-1/2 -translate-x-1/2 z-100 w-[90%] max-w-4xl">
         <div className="relative backdrop-blur-2xl bg-linear-to-r from-white/8 to-white/4 border border-white/8 rounded-full px-8 py-3 flex items-center justify-between shadow-lg shadow-black/20">
           {/* Subtle gradient overlay */}
           <div className="absolute inset-0 rounded-full bg-linear-to-r from-purple-500/5 via-transparent to-pink-500/5 pointer-events-none" />
           
-          {/* Logo */}
-          <div className="relative flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-linear-to-br from-zinc-700 to-zinc-800 flex items-center justify-center shadow-lg shadow-purple-500/25">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-lg font-semibold bg-linear-to-r from-white to-gray-300 bg-clip-text text-transparent">SketchoFlow</span>
-          </div>
+          {/* Logo - Theme-aware */}
+          <ThemedLogo />
           
           {/* Auth Buttons */}
           <AuthButtons />
@@ -332,7 +334,7 @@ export default function Home() {
       </nav>
 
       {/* ========== SECTION 1: HERO WITH LASERFLOW ========== */}
-      <section ref={heroSectionRef} className="relative min-h-[200vh] pb-32 bg-zinc-900">
+      <section ref={heroSectionRef} className="relative pb-32 bg-zinc-900">
         {/* LaserFlow Background - Extends through container */}
         <div className="absolute inset-x-0 top-0 h-[160vh] z-0">
           <LaserFlow
@@ -373,6 +375,7 @@ export default function Home() {
           <div className="px-6 md:px-12 lg:px-20 pt-32 md:pt-40 pb-8 md:pb-12">
             <div className="max-w-xl text-left">
               {/* Main Heading with TypeText effect on full heading */}
+              <ScrollReveal variant="fadeUp" delay={0.1} duration={1}>
               <div className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.1] mb-8 md:mb-10 min-h-[2.4em]" style={{ fontFamily: 'var(--font-heading)' }}>
                 <TextType
                   text={[
@@ -395,25 +398,32 @@ export default function Home() {
                   restWordsClassName="bg-linear-to-r from-purple-600 via-purple-500 to-purple-400 bg-clip-text text-transparent"
                 />
               </div>
+              </ScrollReveal>
               
               {/* Subtext with ShinyText */}
+              <ScrollReveal variant="fadeUp" delay={0.3} duration={0.8}>
               <div className="text-base sm:text-lg md:text-xl mb-6 font-medium tracking-wide">
                 <ShinyText 
                   text="Generate, sketch, or transform with the power of AI — all from one seamless workspace."
                   speed={4}
                 />
               </div>
+              </ScrollReveal>
               
               {/* Additional descriptive text */}
+              <ScrollReveal variant="fadeUp" delay={0.5} duration={0.8}>
               <p className="text-sm sm:text-base text-gray-400 mb-4 leading-relaxed font-normal tracking-wide">
                 Whether you're a designer, developer, or creator — SketchoFlow brings your imagination to life with cutting-edge AI tools.
               </p>
+              </ScrollReveal>
+              <ScrollReveal variant="fadeUp" delay={0.65} duration={0.8}>
               <p className="text-sm sm:text-base text-gray-500 mb-8 leading-relaxed font-normal tracking-wide">
                 From wireframes to polished designs, from rough sketches to production-ready assets. No limits, just creativity.
               </p>
+              </ScrollReveal>
               
               {/* JoinToday Button */}
-              <div className="relative z-30">
+              <div className="relative z-30 animate-fade-in-up" style={{ animationDelay: '0.8s', animationFillMode: 'both' }}>
                 <JoinToday onJoinNowClick={() => setIsSignupPopupOpen(true)} />
               </div>
 
@@ -454,14 +464,14 @@ export default function Home() {
           </div>
 
           {/* Image with Container Scroll Animation */}
-          <div className="-mt-16 md:-mt-44 relative z-10">
+          <div className="mt-8 md:-mt-44 relative z-10">
             <ContainerScroll
               titleComponent={<></>}
             >
               <img 
                 src="/SketchoFlow Landing.png" 
                 alt="SketchoFlow AI Workspace" 
-                className="w-full h-full object-cover object-top rounded-2xl"
+                className="w-full h-auto object-cover object-top rounded-2xl"
               />
             </ContainerScroll>
           </div>
@@ -487,17 +497,26 @@ export default function Home() {
             {/* Content above LightRays */}
             <div className="relative z-10 max-w-7xl mx-auto px-6 pt-8 pb-32">
               <div className="text-center mb-16 space-y-6">
-                <h2 className="text-5xl md:text-6xl font-extrabold" style={{ fontFamily: 'var(--font-heading)' }}>
-                  Your Professional{" "}
-                  <span className="bg-linear-to-r from-zinc-500 via-zinc-400 to-zinc-300 bg-clip-text text-transparent">
-                    AI Workspace
-                  </span>
-                </h2>
-                <p className="text-xl text-gray-400 max-w-3xl mx-auto font-normal tracking-wide">
-                  Generate, sketch, or transform — all in one seamless interface designed for creators.
-                </p>
+                <SplitText
+                  text="Your Professional AI Workspace"
+                  tag="h2"
+                  className="text-5xl md:text-6xl font-extrabold"
+                  splitType="chars"
+                  delay={40}
+                  duration={0.6}
+                  ease="power2.out"
+                  from={{ opacity: 0, y: 50 }}
+                  to={{ opacity: 1, y: 0 }}
+                  textAlign="center"
+                />
+                <ScrollReveal variant="fadeUp" delay={0.5} duration={0.8}>
+                  <p className="text-xl text-gray-400 max-w-3xl mx-auto font-normal tracking-wide">
+                    Generate, sketch, or transform — all in one seamless interface designed for creators.
+                  </p>
+                </ScrollReveal>
 
                 {/* Professional Workspace Tool Card - Transparent to blend with LightRays */}
+              <ScrollReveal variant="zoomIn" delay={0.7} duration={1}>
               <div className="relative group ">
                 {/* Main card with transparent design */}
                 <div className="relative bg-zinc-900/90 backdrop-blur-sm rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)] border border-white/10">
@@ -969,16 +988,17 @@ export default function Home() {
               <span>AI Model: Vision</span>
               <span>100% • 1920x1080</span>
             </div>
+                </div>
               </div>
+              </ScrollReveal>
             </div>
           </div>
+          </div>
         </div>
-      </div>
-    </div>
-  </section>
+      </section>
 
       {/* ========== SECTION 3: AI ANIMATION FEATURES ========== */}
-      <section ref={developmentSectionRef} className="relative bg-zinc-900 -mt-32">
+      <section ref={developmentSectionRef} className="relative bg-zinc-900">
         {/* GridBeam Background */}
         <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
           <GridBeam className="opacity-60">
@@ -993,22 +1013,30 @@ export default function Home() {
         <div className="relative z-20 max-w-7xl mx-auto px-6 pt-48 pb-32">
           {/* Section Header */}
           <div className="text-center mb-16 space-y-6">
-            <h2 className="text-5xl md:text-6xl font-extrabold" style={{ fontFamily: 'var(--font-heading)' }}>
-              AI-Powered{" "}
-              <span className="bg-linear-to-r from-green-500 via-emerald-400 to-teal-400 bg-clip-text text-transparent">
-                Animation
-              </span>
-              {" "}Studio
-            </h2>
-            <p className="text-xl text-gray-400 max-w-3xl mx-auto font-normal tracking-wide">
-              Four powerful tools — from instant CSS animations to stunning AI-generated videos. Everything you need to create motion magic.
-            </p>
+            <SplitText
+              text="AI-Powered Animation Studio"
+              tag="h2"
+              className="text-5xl md:text-6xl font-extrabold text-emerald-400"
+              splitType="chars"
+              delay={40}
+              duration={0.6}
+              ease="power2.out"
+              from={{ opacity: 0, y: 50 }}
+              to={{ opacity: 1, y: 0 }}
+              textAlign="center"
+            />
+            <ScrollReveal variant="fadeUp" delay={0.5} duration={0.8}>
+              <p className="text-xl text-gray-400 max-w-3xl mx-auto font-normal tracking-wide">
+                Four powerful tools — from instant CSS animations to stunning AI-generated videos. Everything you need to create motion magic.
+              </p>
+            </ScrollReveal>
           </div>
 
           {/* Features Grid - 2x2 Quad Layout */}
           <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
             
             {/* Feature 1: CSS Animation - Instant & Lightweight */}
+            <ScrollReveal variant="fadeUp" delay={0.2} duration={0.9}>
             <ParticleCard
               className="bg-zinc-800/50 backdrop-blur-sm rounded-3xl p-8 border border-white/10 hover:border-cyan-500/40 transition-all duration-300"
               glowColor="6, 182, 212"
@@ -1047,8 +1075,10 @@ export default function Home() {
                 </div>
               </div>
             </ParticleCard>
+            </ScrollReveal>
 
             {/* Feature 2: SVG Animation - Vector-Based */}
+            <ScrollReveal variant="fadeUp" delay={0.4} duration={0.9}>
             <ParticleCard
               className="bg-zinc-800/50 backdrop-blur-sm rounded-3xl p-8 border border-white/10 hover:border-green-500/40 transition-all duration-300"
               glowColor="34, 197, 94"
@@ -1087,8 +1117,10 @@ export default function Home() {
                 </div>
               </div>
             </ParticleCard>
+            </ScrollReveal>
 
             {/* Feature 3: GIF Animation - Easy to Embed */}
+            <ScrollReveal variant="fadeUp" delay={0.6} duration={0.9}>
             <ParticleCard
               className="bg-zinc-800/50 backdrop-blur-sm rounded-3xl p-8 border border-white/10 hover:border-pink-500/40 transition-all duration-300"
               glowColor="236, 72, 153"
@@ -1127,8 +1159,10 @@ export default function Home() {
                 </div>
               </div>
             </ParticleCard>
+            </ScrollReveal>
 
             {/* Feature 4: Video Animation - Premium MP4 */}
+            <ScrollReveal variant="fadeUp" delay={0.8} duration={0.9}>
             <ParticleCard
               className="bg-zinc-800/50 backdrop-blur-sm rounded-3xl p-8 border border-white/10 hover:border-purple-500/40 transition-all duration-300"
               glowColor="147, 51, 234"
@@ -1167,6 +1201,7 @@ export default function Home() {
                 </div>
               </div>
             </ParticleCard>
+            </ScrollReveal>
 
           </div>
 
@@ -1201,16 +1236,27 @@ export default function Home() {
           <div className="max-w-7xl mx-auto px-6">
             {/* Section Header */}
             <div className="text-center mb-16 space-y-6">
-              
-              <h2 className="text-5xl md:text-6xl font-extrabold" style={{ fontFamily: 'var(--font-heading)' }}>
-                Your <span className="bg-linear-to-r from-violet-500 via-purple-400 to-violet-500 bg-clip-text text-transparent">Animation</span> Workspace
-              </h2>
+              <SplitText
+                text="Your Animation Workspace"
+                tag="h2"
+                className="text-5xl md:text-6xl font-extrabold text-violet-400"
+                splitType="chars"
+                delay={40}
+                duration={0.6}
+                ease="power2.out"
+                from={{ opacity: 0, y: 50 }}
+                to={{ opacity: 1, y: 0 }}
+                textAlign="center"
+              />
+              <ScrollReveal variant="fadeUp" delay={0.5} duration={0.8}>
               <p className="text-xl text-gray-400 max-w-3xl mx-auto font-normal tracking-wide">
                 Four powerful tools in one unified interface. Create CSS, SVG, GIF, and Video animations with AI.
               </p>
+              </ScrollReveal>
             </div>
 
             {/* Animation Studio Workspace */}
+            <ScrollReveal variant="zoomIn" delay={0.7} duration={1}>
             <div className="bg-zinc-900/80 backdrop-blur-xl rounded-xl border border-white/10 shadow-2xl overflow-hidden" suppressHydrationWarning>
               {/* Top Toolbar with 4 Tabs */}
               <div className="bg-zinc-950/90 border-b border-white/5 px-4 py-2 flex items-center justify-between">
@@ -1441,7 +1487,9 @@ export default function Home() {
                           </>
                         ) : (
                           <div className="text-center text-gray-500">
-                            <div className="text-4xl mb-4">{studioTab === 'css' ? '⚡' : '🎨'}</div>
+                            <div className="flex justify-center mb-4">
+                              {studioTab === 'css' ? <Zap className="w-12 h-12 text-cyan-400/50" /> : <Palette className="w-12 h-12 text-green-400/50" />}
+                            </div>
                             <p className="text-sm">Enter a prompt and click Generate</p>
                             <p className="text-xs mt-2 text-gray-600">Your animation will appear here</p>
                           </div>
@@ -1466,7 +1514,9 @@ export default function Home() {
                           )
                         ) : (
                           <div className="text-center text-gray-500">
-                            <div className="text-4xl mb-4">{studioTab === 'gif' ? '🖼️' : '🎬'}</div>
+                            <div className="flex justify-center mb-4">
+                              {studioTab === 'gif' ? <Image className="w-12 h-12 text-pink-400/50" /> : <Video className="w-12 h-12 text-purple-400/50" />}
+                            </div>
                             <p className="text-sm">Enter a prompt and click Generate</p>
                             <p className="text-xs mt-2 text-gray-600">Your {studioTab === 'gif' ? 'GIF' : 'video'} will appear here</p>
                           </div>
@@ -1569,7 +1619,9 @@ ${studioTab === 'css' ? `.animated-element {
                       </pre>
                     ) : (
                       <div className="text-center text-gray-500 py-8">
-                        <div className="text-3xl mb-4">{studioTab === 'gif' ? '🖼️' : '🎬'}</div>
+                        <div className="flex justify-center mb-4">
+                          {studioTab === 'gif' ? <Image className="w-8 h-8 text-pink-400/50" /> : <Video className="w-8 h-8 text-purple-400/50" />}
+                        </div>
                         <p className="text-xs">
                           {studioTab === 'gif' ? 'GIF files are visual outputs' : 'Video files are visual outputs'}
                         </p>
@@ -1620,8 +1672,10 @@ ${studioTab === 'css' ? `.animated-element {
                 </div>
               </div>
             </div>
+            </ScrollReveal>
 
             {/* Feature Highlights with Lucide Icons */}
+            <ScrollReveal variant="fadeUp" delay={0.2} duration={0.6}>
             <div className="grid grid-cols-4 gap-4 mt-8">
               {[
                 { Icon: Zap, title: 'CSS Animation', desc: 'Zero GPU, instant results', color: 'text-cyan-400', hoverClass: 'hover:border-cyan-500/30' },
@@ -1638,6 +1692,7 @@ ${studioTab === 'css' ? `.animated-element {
                 </div>
               ))}
             </div>
+            </ScrollReveal>
           </div>
         </div>
       </section>
@@ -1647,78 +1702,103 @@ ${studioTab === 'css' ? `.animated-element {
         {/* Top Gradient Transition - pure black blend */}
         <div className="absolute inset-x-0 top-0 h-40 bg-black pointer-events-none z-10" />
 
-        {/* 3D Robot - with CSS mask for seamless bottom fade, pointer-events-auto for cursor tracking */}
-        <div 
-          className="absolute right-0 top-[8%] w-[60%] h-full z-5 pointer-events-auto"
-          style={{
-            maskImage: 'linear-gradient(to bottom, black 0%, black 50%, transparent 75%)',
-            WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 50%, transparent 75%)',
-          }}
-        >
-          <SplineScene 
-            scene="https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode"
-            className="w-full h-full scale-[0.75] origin-top-right"
-          />
-        </div>
-
-        {/* Content Container */}
-        <div className="relative z-10 min-h-screen flex items-center pointer-events-none">
-          {/* Left Side - Text Content */}
-          <div className="w-full lg:w-[45%] px-8 md:px-16 lg:px-20 py-20 pointer-events-auto">
-            {/* Main Headline with Rotating Text - Gray Gradient Style */}
-            <div className="text-2xl md:text-3xl lg:text-5xl font-bold text-white leading-tight mb-6" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-              <div>Empower Creativity</div>
-              <div className="flex items-center gap-3 mt-2">
-                <span>to</span>
+        {/* Main Content - Flex layout for side by side */}
+        <div className="relative z-20 min-h-screen flex items-center">
+          {/* Left Side - Text Content (takes 50% on large screens) */}
+          <div className="w-full lg:w-1/2 px-8 md:px-16 lg:px-20 py-20 relative z-30">
+            {/* Main Headline */}
+            <div className="mb-6">
+              <SplitText
+                text="Empower Creativity"
+                tag="h2"
+                className="text-4xl md:text-5xl lg:text-6xl font-bold text-white"
+                splitType="chars"
+                delay={40}
+                duration={0.6}
+                ease="power2.out"
+                from={{ opacity: 0, y: 40 }}
+                to={{ opacity: 1, y: 0 }}
+                textAlign="left"
+              />
+              <div className="flex items-baseline gap-3 mt-2 flex-wrap">
+                <span className="text-4xl md:text-5xl lg:text-6xl font-bold text-white">to</span>
                 <RotatingText
                   texts={['Sketch','Generate','Animate', 'Export', 'Share', 'Love']}
-                  mainClassName="inline-flex px-3 py-1 bg-gradient-to-r from-zinc-800 via-yellow-200 to-zinc-800 text-zinc-900 rounded-lg overflow-hidden"
+                  mainClassName="inline-flex px-4 py-2 bg-gradient-to-r from-zinc-800 via-yellow-200 to-zinc-800 text-zinc-900 rounded-lg overflow-hidden text-4xl md:text-5xl lg:text-6xl font-bold"
                 />
               </div>
             </div>
 
             {/* Subtitle with ShinyText */}
-            <div className="text-base md:text-lg mb-8 max-w-lg leading-relaxed">
+            <ScrollReveal variant="fadeUp" delay={0.3} duration={0.8}>
+            <div className="text-base md:text-lg mb-6 max-w-lg leading-relaxed">
               <ShinyText 
                 text="Sketchoflow transforms your rough sketches into polished animations. Generate CSS, SVG, GIF, and video animations with AI — no design experience needed. Your imagination is the only limit."
                 speed={3}
                 className="text-gray-600!"
               />
             </div>
+            </ScrollReveal>
 
             {/* Feature Points with Lucide Icons */}
-            <div className="flex flex-wrap gap-3 mb-10">
+            <ScrollReveal variant="fadeUp" delay={0.5} duration={0.8}>
+            <div className="grid grid-cols-2 gap-3 mb-6 max-w-md">
               {[
                 { icon: Pencil, text: 'Sketch to Animation', color: 'text-violet-400' },
                 { icon: Bot, text: 'AI-Powered Generation', color: 'text-cyan-400' },
                 { icon: Zap, text: 'Instant Export', color: 'text-amber-400' },
                 { icon: RefreshCw, text: 'Image to Transform', color: 'text-pink-400' },
               ].map((item, idx) => (
-                <div key={idx} className="flex items-center gap-2.5 bg-zinc-900/80 backdrop-blur-sm border border-white/10 rounded-full px-5 py-2.5">
+                <div key={idx} className="flex items-center gap-2.5 bg-zinc-900/80 backdrop-blur-sm border border-white/10 rounded-full px-4 py-2.5">
                   <item.icon className={`w-4 h-4 ${item.color}`} />
                   <span className="text-sm font-medium text-gray-200">{item.text}</span>
                 </div>
               ))}
             </div>
+            </ScrollReveal>
 
             {/* CTA Buttons */}
-            <div className="flex flex-wrap items-center gap-4">
+            <ScrollReveal variant="fadeUp" delay={0.3} duration={0.6}>
+            <div className="flex flex-wrap items-center gap-4 mb-6">
               <StartFree text="Start Creating Free" />
               <Explore 
                 text="Explore Features" 
                 onClick={() => workspaceSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
               />
             </div>
+            </ScrollReveal>
 
             {/* Trust Badge */}
-            <p className="mt-10 text-sm text-gray-500">
+            <ScrollReveal variant="fadeUp" delay={0.4} duration={0.6}>
+            <p className="text-sm text-gray-500">
               Join <span className="text-white font-medium">10,000+</span> creators already using Sketchoflow
             </p>
+            </ScrollReveal>
+          </div>
+
+          {/* Right Side - 3D Robot (takes 50% on large screens) */}
+          <div className="hidden lg:block absolute right-0 top-0 w-1/2 h-full z-10">
+            <div 
+              className="w-full h-full"
+              style={{
+                maskImage: 'linear-gradient(to bottom, black 0%, black 60%, transparent 90%)',
+                WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 60%, transparent 90%)',
+              }}
+            >
+              <SplineScene 
+                scene="https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode"
+                className="w-full h-full"
+                style={{
+                  transform: 'translateX(10%) translateY(5%) scale(0.9)',
+                  transformOrigin: 'center center',
+                }}
+              />
+            </div>
           </div>
         </div>
 
         {/* Bottom Fade */}
-        <div className="absolute inset-x-0 bottom-0 h-32 bg-linear-to-t from-black to-transparent pointer-events-none z-20" />
+        <div className="absolute inset-x-0 bottom-0 h-32 bg-linear-to-t from-black to-transparent pointer-events-none z-25" />
       </section>
 
       {/* ========== FOOTER ========== */}
@@ -1728,6 +1808,7 @@ ${studioTab === 'css' ? `.animated-element {
         
         <div className="max-w-7xl mx-auto px-8 md:px-16 lg:px-20">
           {/* Footer Grid */}
+          <ScrollReveal variant="fadeUp" delay={0.1} duration={0.6}>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-16">
             {/* Brand Column */}
             <div className="col-span-2 md:col-span-1">
@@ -1778,8 +1859,10 @@ ${studioTab === 'css' ? `.animated-element {
               </ul>
             </div>
           </div>
+          </ScrollReveal>
 
           {/* Bottom Bar */}
+          <ScrollReveal variant="fadeUp" delay={0.2} duration={0.6}>
           <div className="flex flex-col md:flex-row items-center justify-between pt-8 border-t border-white/10">
             <p className="text-sm text-gray-600">
               © 2025 SketchoFlow. All rights reserved.
@@ -1788,6 +1871,7 @@ ${studioTab === 'css' ? `.animated-element {
               <SocialButtons />
             </div>
           </div>
+          </ScrollReveal>
         </div>
       </footer>
     </main>
