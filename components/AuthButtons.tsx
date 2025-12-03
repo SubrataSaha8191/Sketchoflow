@@ -3,7 +3,9 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { useTheme, ColorTheme } from '@/context/ThemeContext';
+import { useAuth } from '@/context/AuthContext';
 import AuthPopup from './AuthPopup';
+import UserProfileMenu from './UserProfileMenu';
 
 const colorThemes: Record<ColorTheme, { gradient: string; text: string; glow: string }> = {
   purple: {
@@ -35,6 +37,7 @@ const colorThemes: Record<ColorTheme, { gradient: string; text: string; glow: st
 
 const AuthButtons = () => {
   const { buttonTheme } = useTheme();
+  const { user, loading, signOut } = useAuth();
   const theme = colorThemes[buttonTheme];
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
@@ -56,6 +59,31 @@ const AuthButtons = () => {
   const handleToggleMode = () => {
     setAuthMode(authMode === 'signin' ? 'signup' : 'signin');
   };
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
+
+  // Show loading state
+  if (loading) {
+    return (
+      <StyledWrapper $gradient={theme.gradient} $text={theme.text} $glow={theme.glow}>
+        <span className="loading-text">Loading...</span>
+      </StyledWrapper>
+    );
+  }
+
+  // Show user info when logged in
+  if (user) {
+    return (
+      <StyledWrapper $gradient={theme.gradient} $text={theme.text} $glow={theme.glow}>
+        <div className="user-info">
+          <span className="user-name">{user.displayName || user.email?.split('@')[0]}</span>
+        </div>
+        <UserProfileMenu />
+      </StyledWrapper>
+    );
+  }
 
   return (
     <>
@@ -87,6 +115,49 @@ const StyledWrapper = styled.div<StyledWrapperProps>`
   display: flex;
   align-items: center;
   gap: 12px;
+
+  .loading-text {
+    color: #a1a1aa;
+    font-size: 14px;
+  }
+
+  .user-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid ${props => props.$glow}60;
+  }
+
+  .avatar-placeholder {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: ${props => props.$gradient};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+    text-transform: uppercase;
+  }
+
+  .user-name {
+    color: ${props => props.$text};
+    font-size: 14px;
+    font-weight: 500;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
   .Btn {
     width: 100px;
@@ -139,6 +210,10 @@ const StyledWrapper = styled.div<StyledWrapperProps>`
 
   .Btn:active {
     transform: scale(0.95);
+  }
+
+  .Btn.sign-out {
+    width: 90px;
   }
 `;
 

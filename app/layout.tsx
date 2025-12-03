@@ -3,6 +3,9 @@ import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import StyledComponentsRegistry from "@/lib/registry";
 import { ThemeProvider } from "@/context/ThemeContext";
+import { AuthProvider } from "@/context/AuthContext";
+import { AuthGateProvider } from "@/context/AuthGateContext";
+import AuthGatePopup from "@/components/AuthGatePopup";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -31,7 +34,14 @@ export default function RootLayout({
         className={`${inter.variable} ${plusJakarta.variable} font-sans antialiased`}
       >
         <StyledComponentsRegistry>
-          <ThemeProvider>{children}</ThemeProvider>
+          <AuthProvider>
+            <AuthGateProvider>
+              <ThemeProvider>
+                {children}
+                <AuthGatePopup />
+              </ThemeProvider>
+            </AuthGateProvider>
+          </AuthProvider>
         </StyledComponentsRegistry>
       </body>
     </html>

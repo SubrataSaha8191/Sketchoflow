@@ -17,6 +17,7 @@ import { GridBeam } from "@/components/background-grid-beam";
 import { CosmicParallaxBg } from "@/components/parallax-cosmic-background";
 import { ParticleCard } from "@/components/MagicBento";
 import { useTheme, ColorTheme } from "@/context/ThemeContext";
+import { useAuthGate } from "@/context/AuthGateContext";
 import TryAnimationStudio from "@/components/TryAnimationStudio";
 import SketchCanvas, { SketchCanvasRef } from "@/components/SketchCanvas";
 import AuthPopup from "@/components/AuthPopup";
@@ -67,11 +68,15 @@ export default function Home() {
   const studioSectionRef = useRef<HTMLDivElement>(null);
   const conclusionSectionRef = useRef<HTMLDivElement>(null);
   
-  const { setButtonTheme } = useTheme();
+  const { setButtonTheme, buttonTheme } = useTheme();
+  const { incrementAction, requireAuth } = useAuthGate();
 
   // Animation Studio API call function
   const generateAnimation = async () => {
     if (!studioPrompt.trim()) return;
+    
+    // Check if user can perform action (first one is free)
+    if (!incrementAction()) return;
     
     setStudioLoading(true);
     setStudioError(null);
@@ -159,6 +164,13 @@ export default function Home() {
     }
   };
 
+  // Export handler with auth check
+  const handleExport = (exportFn: () => void) => {
+    // Require authentication for export
+    if (!requireAuth(buttonTheme)) return;
+    exportFn();
+  };
+
   // Gemini API call function
   const callGeminiAPI = async (mode: 'generate' | 'sketch' | 'transform', imageData?: string | File) => {
     setLoading(true);
@@ -209,6 +221,8 @@ export default function Home() {
   // Handle Generate (text-to-image)
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
+    // Check if user can perform action (first one is free)
+    if (!incrementAction()) return;
     await callGeminiAPI("generate");
   };
 
@@ -219,6 +233,8 @@ export default function Home() {
       setAiResponse("Please draw something on the canvas first");
       return;
     }
+    // Check if user can perform action (first one is free)
+    if (!incrementAction()) return;
     // Save the sketch as rendered image for the sidebar
     setRenderedSketchImage(canvasData);
     await callGeminiAPI("sketch", canvasData);
@@ -230,6 +246,8 @@ export default function Home() {
       setAiResponse("Please upload an image first");
       return;
     }
+    // Check if user can perform action (first one is free)
+    if (!incrementAction()) return;
     // Get the file from the file input
     const file = fileInputRef.current?.files?.[0];
     if (file) {
@@ -477,7 +495,7 @@ export default function Home() {
           </div>
           
           {/* ========== WORKSPACE SECTION with LightRays ========== */}
-          <div ref={workspaceSectionRef} className="relative -mt-32">
+          <div id="workspace-section" ref={workspaceSectionRef} className="relative -mt-32">
             {/* LightRays background - positioned behind content, extends up to blend sections */}
             <div className="absolute inset-x-0 -top-80 h-[800px] z-0 pointer-events-none">
               <LightRays
@@ -865,7 +883,7 @@ export default function Home() {
                   <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Export As</h3>
                   <div className="space-y-1.5">
                     <button 
-                      onClick={() => {
+                      onClick={() => handleExport(() => {
                         if (activeMode === 'sketch' && sketchCanvasRef.current) {
                           const dataUrl = sketchCanvasRef.current.getCanvasDataUrl();
                           if (dataUrl) {
@@ -880,14 +898,14 @@ export default function Home() {
                           link.href = aiResponse;
                           link.click();
                         }
-                      }}
+                      })}
                       className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-purple-600/20 hover:text-purple-300 rounded-lg cursor-pointer transition-all flex items-center gap-2"
                     >
                       <span className="w-2 h-2 rounded-full bg-purple-500"></span>
                       PNG
                     </button>
                     <button 
-                      onClick={() => {
+                      onClick={() => handleExport(() => {
                         if (activeMode === 'sketch' && sketchCanvasRef.current) {
                           const canvas = document.querySelector('canvas');
                           if (canvas) {
@@ -903,14 +921,14 @@ export default function Home() {
                           link.href = aiResponse.replace('image/png', 'image/jpeg');
                           link.click();
                         }
-                      }}
+                      })}
                       className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-blue-600/20 hover:text-blue-300 rounded-lg cursor-pointer transition-all flex items-center gap-2"
                     >
                       <span className="w-2 h-2 rounded-full bg-blue-500"></span>
                       JPEG
                     </button>
                     <button 
-                      onClick={() => {
+                      onClick={() => handleExport(() => {
                         if (activeMode === 'sketch' && sketchCanvasRef.current) {
                           const canvas = document.querySelector('canvas');
                           if (canvas) {
@@ -926,14 +944,14 @@ export default function Home() {
                           link.href = aiResponse;
                           link.click();
                         }
-                      }}
+                      })}
                       className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-green-600/20 hover:text-green-300 rounded-lg cursor-pointer transition-all flex items-center gap-2"
                     >
                       <span className="w-2 h-2 rounded-full bg-green-500"></span>
                       WebP
                     </button>
                     <button 
-                      onClick={() => {
+                      onClick={() => handleExport(() => {
                         const canvas = document.querySelector('canvas');
                         if (canvas) {
                           canvas.toBlob((blob) => {
@@ -947,14 +965,14 @@ export default function Home() {
                             }
                           }, 'image/bmp');
                         }
-                      }}
+                      })}
                       className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-orange-600/20 hover:text-orange-300 rounded-lg cursor-pointer transition-all flex items-center gap-2"
                     >
                       <span className="w-2 h-2 rounded-full bg-orange-500"></span>
                       BMP
                     </button>
                     <button 
-                      onClick={async () => {
+                      onClick={() => handleExport(async () => {
                         const canvas = document.querySelector('canvas');
                         if (canvas) {
                           try {
@@ -968,7 +986,7 @@ export default function Home() {
                             console.error('Failed to copy:', err);
                           }
                         }
-                      }}
+                      })}
                       className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-pink-600/20 hover:text-pink-300 rounded-lg cursor-pointer transition-all flex items-center gap-2"
                     >
                       <span className="w-2 h-2 rounded-full bg-pink-500"></span>
@@ -1296,7 +1314,7 @@ export default function Home() {
                 </div>
                 <div className="flex items-center gap-2">
                   <button 
-                    onClick={() => {
+                    onClick={() => handleExport(() => {
                       if (studioMediaUrl) {
                         const link = document.createElement('a');
                         link.href = studioMediaUrl;
@@ -1311,7 +1329,7 @@ export default function Home() {
                         link.click();
                         URL.revokeObjectURL(url);
                       }
-                    }}
+                    })}
                     disabled={!studioCode && !studioMediaUrl}
                     className="px-3 py-1 text-xs bg-pink-600 hover:bg-pink-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded transition-colors"
                   >
@@ -1777,23 +1795,21 @@ ${studioTab === 'css' ? `.animated-element {
           </div>
 
           {/* Right Side - 3D Robot (takes 50% on large screens) */}
-          <div className="hidden lg:block absolute right-0 top-0 w-1/2 h-full z-10">
+          <div className="hidden lg:block absolute right-0 top-0 w-[55%] h-[110%] z-10 overflow-visible">
+            <ScrollReveal variant="zoomOut" delay={0.2} duration={1}>
             <div 
-              className="w-full h-full"
-              style={{
-                maskImage: 'linear-gradient(to bottom, black 0%, black 60%, transparent 90%)',
-                WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 60%, transparent 90%)',
-              }}
+              className="w-full h-full overflow-visible"
             >
               <SplineScene 
                 scene="https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode"
                 className="w-full h-full"
                 style={{
-                  transform: 'translateX(10%) translateY(5%) scale(0.9)',
-                  transformOrigin: 'center center',
+                  transform: 'translateX(0%) translateY(-5%) scale(1.8)',
+                  transformOrigin: 'center top',
                 }}
               />
             </div>
+            </ScrollReveal>
           </div>
         </div>
 

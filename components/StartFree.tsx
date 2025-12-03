@@ -1,5 +1,9 @@
-import React from 'react';
+'use client';
+
+import React, { useState } from 'react';
 import styled from 'styled-components';
+import AuthPopup from './AuthPopup';
+import { useAuth } from '@/context/AuthContext';
 
 interface StartFreeProps {
   text?: string;
@@ -7,12 +11,48 @@ interface StartFreeProps {
 }
 
 const StartFree: React.FC<StartFreeProps> = ({ text = 'Subscribe', onClick }) => {
+  const { user } = useAuth();
+  const [isPopupOpen, setIsPopupOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signup');
+
+  const handleClick = () => {
+    if (onClick) {
+      onClick();
+    } else if (user) {
+      // User is logged in - scroll to workspace section
+      const workspaceSection = document.getElementById('workspace-section');
+      if (workspaceSection) {
+        workspaceSection.scrollIntoView({ behavior: 'smooth' });
+      }
+    } else {
+      // User is not logged in - show signup popup
+      setIsPopupOpen(true);
+    }
+  };
+
+  const handleClosePopup = () => {
+    setIsPopupOpen(false);
+  };
+
+  const handleToggleMode = () => {
+    setAuthMode(authMode === 'signin' ? 'signup' : 'signin');
+  };
+
   return (
-    <StyledWrapper>
-      <button className="button" onClick={onClick}>
-        {text}
-      </button>
-    </StyledWrapper>
+    <>
+      <StyledWrapper>
+        <button className="button" onClick={handleClick}>
+          {text}
+        </button>
+      </StyledWrapper>
+      <AuthPopup
+        isOpen={isPopupOpen}
+        onClose={handleClosePopup}
+        mode={authMode}
+        onToggleMode={handleToggleMode}
+        themeOverride="gold"
+      />
+    </>
   );
 }
 
