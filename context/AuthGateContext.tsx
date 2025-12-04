@@ -7,7 +7,7 @@ import { ColorTheme } from './ThemeContext';
 interface AuthGateContextType {
   // Track workspace actions
   actionCount: number;
-  incrementAction: () => boolean; // Returns true if action is allowed, false if auth required
+  incrementAction: (theme?: ColorTheme) => boolean; // Returns true if action is allowed, false if auth required
   resetActionCount: () => void;
   
   // Auth gate popup state
@@ -52,7 +52,7 @@ export const AuthGateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [user, actionCount]);
 
   // Increment action count and check if auth is required
-  const incrementAction = useCallback(() => {
+  const incrementAction = useCallback((theme: ColorTheme = 'purple') => {
     // Authenticated users can always proceed
     if (user) {
       setActionCount(prev => prev + 1);
@@ -65,7 +65,8 @@ export const AuthGateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return true;
     }
     
-    // Second action requires auth
+    // Second action requires auth - use provided theme
+    setAuthGateTheme(theme);
     setIsAuthGateOpen(true);
     return false;
   }, [user, actionCount]);

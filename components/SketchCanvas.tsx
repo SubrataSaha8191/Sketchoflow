@@ -12,6 +12,7 @@ interface SketchCanvasProps {
   opacity?: number;
   onBrushSizeChange?: (size: number) => void;
   onOpacityChange?: (opacity: number) => void;
+  onHasDrawingChange?: (hasDrawing: boolean) => void;
 }
 
 type Tool = 'pencil' | 'eraser' | 'line' | 'rectangle' | 'circle' | 'pan';
@@ -21,7 +22,7 @@ interface HistoryState {
 }
 
 const SketchCanvas = forwardRef<SketchCanvasRef, SketchCanvasProps>(
-  ({ brushSize = 3, opacity = 100, onBrushSizeChange, onOpacityChange }, ref) => {
+  ({ brushSize = 3, opacity = 100, onBrushSizeChange, onOpacityChange, onHasDrawingChange }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -130,7 +131,8 @@ const SketchCanvas = forwardRef<SketchCanvasRef, SketchCanvasProps>(
     // Update UI state
     setHistoryLength(newHistory.length);
     setCurrentHistoryIndex(historyIndexRef.current);
-  }, []);
+    onHasDrawingChange?.(historyIndexRef.current > 0);
+  }, [onHasDrawingChange]);
 
   const undo = useCallback(() => {
     if (historyIndexRef.current <= 0) return;
@@ -143,8 +145,9 @@ const SketchCanvas = forwardRef<SketchCanvasRef, SketchCanvasProps>(
     if (state) {
       ctx.putImageData(state.imageData, 0, 0);
       setCurrentHistoryIndex(historyIndexRef.current);
+      onHasDrawingChange?.(historyIndexRef.current > 0);
     }
-  }, []);
+  }, [onHasDrawingChange]);
 
   const redo = useCallback(() => {
     if (historyIndexRef.current >= historyRef.current.length - 1) return;
@@ -157,8 +160,9 @@ const SketchCanvas = forwardRef<SketchCanvasRef, SketchCanvasProps>(
     if (state) {
       ctx.putImageData(state.imageData, 0, 0);
       setCurrentHistoryIndex(historyIndexRef.current);
+      onHasDrawingChange?.(historyIndexRef.current > 0);
     }
-  }, []);
+  }, [onHasDrawingChange]);
 
   // Expose methods via ref
   useImperativeHandle(ref, () => ({
@@ -199,8 +203,9 @@ const SketchCanvas = forwardRef<SketchCanvasRef, SketchCanvasProps>(
       historyIndexRef.current = 0;
       setHistoryLength(1);
       setCurrentHistoryIndex(0);
+      onHasDrawingChange?.(false);
     },
-  }));
+  }), [internalBrushSize, strokeColor, internalOpacity, onHasDrawingChange]);
 
   const getCanvasPoint = (e: React.MouseEvent) => {
     const canvas = canvasRef.current;

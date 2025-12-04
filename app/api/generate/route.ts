@@ -2,11 +2,16 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export const runtime = "nodejs";
 
-// Initialize Gemini AI
+// Initialize Gemini AI (optional - used for image analysis only)
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
-// Use gemini-1.5-flash which has better free tier limits (15 RPM, 1M tokens/min)
-const MODEL_NAME = "gemini-1.5-flash";
+// Available Gemini models - try multiple fallbacks
+const GEMINI_MODELS = [
+  "gemini-1.5-flash",
+  "gemini-1.5-pro", 
+  "gemini-pro",
+  "gemini-pro-vision"
+];
 
 // Helper function to delay execution
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -14,7 +19,7 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 // Helper function with retry logic
 async function callWithRetry<T>(
   fn: () => Promise<T>,
-  maxRetries: number = 2,
+  maxRetries: number = 3,
   baseDelay: number = 2000
 ): Promise<T> {
   let lastError: Error | null = null;
@@ -44,46 +49,72 @@ async function callWithRetry<T>(
   throw lastError;
 }
 
+// Function to generate image using Pollinations AI (free, no API key needed)
+async function generateImageWithPollinations(prompt: string): Promise<string> {
+  // Enhance prompt for better results
+  const enhancedPrompt = `${prompt}, high quality, detailed, professional, 4k, beautiful lighting`;
+  const encodedPrompt = encodeURIComponent(enhancedPrompt);
+  const seed = Math.floor(Math.random() * 1000000);
+  const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${seed}&nologo=true`;
+  
+  // Verify the image can be fetched
+  const response = await fetch(imageUrl);
+  if (!response.ok) {
+    throw new Error('Failed to generate image');
+  }
+  
+  return imageUrl;
+}
+
+// Function to try Gemini with multiple model fallbacks
+async function tryGeminiWithFallback(prompt: string, imageData?: { mimeType: string; data: string }): Promise<string | null> {
+  for (const modelName of GEMINI_MODELS) {
+    try {
+      const model = genAI.getGenerativeModel({ model: modelName });
+      
+      const content = imageData 
+        ? [{ inlineData: imageData }, { text: prompt }]
+        : [{ text: prompt }];
+      
+      const result = await model.generateContent(content);
+      const response = await result.response;
+      return response.text().trim();
+    } catch (error: any) {
+      console.log(`Model ${modelName} failed:`, error.message);
+      continue;
+    }
+  }
+  return null;
+}
+
 export async function POST(req: Request) {
   try {
-    // Check if API key is configured
-    if (!process.env.GEMINI_API_KEY) {
-      return Response.json(
-        { 
-          error: "Gemini API key not configured",
-          details: "Please add GEMINI_API_KEY to your .env.local file"
-        },
-        { status: 500 }
-      );
-    }
-
     const form = await req.formData();
     const file = form.get("image") as File | null;
     const prompt = (form.get("prompt") as string) || "";
     const mode = (form.get("mode") as string) || "generate"; // generate, sketch, transform
 
-    const model = genAI.getGenerativeModel({ model: MODEL_NAME });
-
     // For text-to-image generation (generate mode without image)
     if (mode === "generate" && !file) {
-      const result = await callWithRetry(async () => {
-        return await model.generateContent([
-          {
-            text: `Generate a detailed, high-quality image based on this description: ${prompt}. 
-                   Focus on creating a visually stunning and creative interpretation.`,
-          },
-        ]);
-      });
-
-      const response = await result.response;
-      const text = response.text();
-
-      return Response.json({
-        success: true,
-        mode: "generate",
-        description: text,
-        message: "Image generation prompt processed",
-      });
+      try {
+        // Generate image directly with Pollinations AI (no Gemini needed)
+        const imageUrl = await generateImageWithPollinations(prompt);
+        
+        return Response.json({
+          success: true,
+          mode: "generate",
+          imageUrl: imageUrl,
+          originalPrompt: prompt,
+          message: "Image generated successfully",
+        });
+      } catch (genError: any) {
+        console.error("Image generation error:", genError);
+        return Response.json({
+          success: false,
+          error: "Image generation failed",
+          details: genError.message || "Failed to generate image"
+        }, { status: 500 });
+      }
     }
 
     // For image-based operations (sketch-to-image or transform)
@@ -96,37 +127,70 @@ export async function POST(req: Request) {
       let systemPrompt = "";
       
       if (mode === "sketch") {
-        systemPrompt = `You are an AI that transforms sketches into detailed, polished images.
-                        Analyze this sketch and describe how it would look as a fully rendered, 
-                        professional image. Consider: ${prompt || "making it photorealistic and detailed"}.
-                        Describe the enhanced version in vivid detail.`;
+        systemPrompt = `You are an AI that transforms sketches into detailed image descriptions.
+                        Analyze this sketch and create a detailed prompt that would generate a fully rendered, 
+                        professional version of this sketch. Consider: ${prompt || "making it photorealistic and detailed"}.
+                        Return ONLY the image generation prompt, nothing else. Be very detailed about colors, lighting, style, and composition.`;
       } else if (mode === "transform") {
-        systemPrompt = `You are an AI that transforms and edits images based on user instructions.
-                        Apply this transformation to the image: ${prompt}.
-                        Describe the resulting transformed image in detail.`;
+        systemPrompt = `You are an AI that creates image transformation prompts.
+                        Analyze this image and create a detailed prompt that would generate a transformed version
+                        with this change applied: ${prompt}.
+                        Return ONLY the image generation prompt, nothing else. Be very detailed.`;
       } else {
         systemPrompt = `Analyze this image and ${prompt ? `respond to: ${prompt}` : "describe what you see in detail"}.`;
       }
 
-      const result = await callWithRetry(async () => {
-        return await model.generateContent([
-          {
-            inlineData: {
-              mimeType: mimeType,
-              data: base64Image,
-            },
-          },
-          { text: systemPrompt },
-        ]);
-      });
+      // Try to analyze image with Gemini (with fallback)
+      let generationPrompt: string | null = null;
+      
+      if (process.env.GEMINI_API_KEY) {
+        generationPrompt = await tryGeminiWithFallback(systemPrompt, {
+          mimeType: mimeType,
+          data: base64Image,
+        });
+      }
+      
+      // If Gemini fails or no API key, use the original prompt for image generation
+      if (!generationPrompt) {
+        generationPrompt = prompt || "a detailed artistic image, high quality, professional";
+      }
 
-      const response = await result.response;
-      const text = response.text();
+      // For sketch and transform modes, generate the actual image
+      if (mode === "sketch" || mode === "transform") {
+        try {
+          const imageUrl = await generateImageWithPollinations(generationPrompt);
+          
+          return Response.json({
+            success: true,
+            mode: mode,
+            imageUrl: imageUrl,
+            generationPrompt: generationPrompt,
+            received: {
+              filename: file.name,
+              size: buffer.length,
+              prompt: prompt,
+            },
+          });
+        } catch (genError: any) {
+          return Response.json({
+            success: true,
+            mode: mode,
+            result: generationPrompt,
+            imageUrl: null,
+            error: "Image generation failed, but analysis completed",
+            received: {
+              filename: file.name,
+              size: buffer.length,
+              prompt: prompt,
+            },
+          });
+        }
+      }
 
       return Response.json({
         success: true,
         mode: mode,
-        result: text,
+        result: generationPrompt,
         received: {
           filename: file.name,
           size: buffer.length,
@@ -140,7 +204,7 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   } catch (err: any) {
-    console.error("Gemini API Error:", err);
+    console.error("API Error:", err);
     
     // Handle rate limit specifically
     if (err?.status === 429 || err?.message?.includes('429') || err?.message?.includes('Too Many Requests')) {

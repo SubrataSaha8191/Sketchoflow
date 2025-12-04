@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Upload, Sparkles, Wand2, ImagePlus, Loader2, Pencil, Bot, Zap, Play, Palette, Image, Video, RefreshCw } from "lucide-react";
+import { Upload, Sparkles, Wand2, ImagePlus, Loader2 as Loader2Icon, Pencil, Bot, Zap, Play, Palette, Image, Video, RefreshCw, Maximize2, Minimize2 } from "lucide-react";
 import LaserFlow from "@/components/LaserFlow";
 import LightRays from "@/components/LightRays";
 import GenerateButton from "@/components/GenerateButton";
@@ -18,10 +18,12 @@ import { CosmicParallaxBg } from "@/components/parallax-cosmic-background";
 import { ParticleCard } from "@/components/MagicBento";
 import { useTheme, ColorTheme } from "@/context/ThemeContext";
 import { useAuthGate } from "@/context/AuthGateContext";
+import { useAuth } from "@/context/AuthContext";
 import TryAnimationStudio from "@/components/TryAnimationStudio";
 import SketchCanvas, { SketchCanvasRef } from "@/components/SketchCanvas";
 import AuthPopup from "@/components/AuthPopup";
 import Loader from "@/components/Loader";
+import Loader2 from "@/components/loader-2";
 import { SplineScene } from "@/components/ui/splite";
 import RotatingText from "@/components/RotatingText";
 import SocialButtons from "@/components/SocialButtons";
@@ -30,6 +32,10 @@ import SplitText from "@/components/SplitText";
 import ScrollReveal from "@/components/ScrollReveal";
 import Explore from "@/components/Explore";
 import ScrollProgress from "@/components/Scrollbar";
+import BlurButton from "@/components/BlurButtons";
+import PromptInput from "@/components/PromptInput";
+import ActivityHistory, { HistoryButton, saveActivity } from "@/components/ActivityHistory";
+import Gallery, { GalleryButton, saveToGallery } from "@/components/Gallery";
 
 export default function Home() {
   const [loading, setLoading] = useState(false);
@@ -42,11 +48,47 @@ export default function Home() {
   const [brushSize, setBrushSize] = useState(5);
   const [opacity, setOpacity] = useState(100);
   const [aiResponse, setAiResponse] = useState<string | null>(null);
+  // Separate image states for each tab
+  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [renderedSketchImage, setRenderedSketchImage] = useState<string | null>(null);
+  const [transformedImage, setTransformedImage] = useState<string | null>(null);
   const [isImageZoomed, setIsImageZoomed] = useState(false);
   const [isSignupPopupOpen, setIsSignupPopupOpen] = useState(false);
+  // Fullscreen states for workspaces
+  const [isWorkspaceFullscreen, setIsWorkspaceFullscreen] = useState(false);
+  const [isStudioFullscreen, setIsStudioFullscreen] = useState(false);
+  // Track if user has drawn on the sketch canvas
+  const [hasSketchDrawing, setHasSketchDrawing] = useState(false);
+  // Activity history popup state
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  // Gallery popup state
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sketchCanvasRef = useRef<SketchCanvasRef>(null);
+  
+  // Disable body scroll when any workspace is in fullscreen mode
+  useEffect(() => {
+    if (isWorkspaceFullscreen || isStudioFullscreen) {
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.style.height = '100%';
+      document.documentElement.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.height = '';
+      document.documentElement.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.height = '';
+      document.documentElement.style.overflow = '';
+    };
+  }, [isWorkspaceFullscreen, isStudioFullscreen]);
   
   // Animation Studio State
   const [studioTab, setStudioTab] = useState<'css' | 'svg' | 'gif' | 'video'>('css');
@@ -69,14 +111,26 @@ export default function Home() {
   const conclusionSectionRef = useRef<HTMLDivElement>(null);
   
   const { setButtonTheme, buttonTheme } = useTheme();
-  const { incrementAction, requireAuth } = useAuthGate();
+  const { incrementAction, requireAuth, openAuthGate } = useAuthGate();
+  const { user } = useAuth();
+
+  // Theme colors for nav links
+  const navColorThemes: Record<ColorTheme, { text: string; hover: string; glow: string }> = {
+    purple: { text: 'text-purple-400', hover: 'hover:text-purple-300', glow: 'hover:drop-shadow-[0_0_8px_rgba(168,85,247,0.5)]' },
+    blue: { text: 'text-blue-400', hover: 'hover:text-blue-300', glow: 'hover:drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]' },
+    gold: { text: 'text-amber-400', hover: 'hover:text-amber-300', glow: 'hover:drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]' },
+    green: { text: 'text-green-400', hover: 'hover:text-green-300', glow: 'hover:drop-shadow-[0_0_8px_rgba(34,197,94,0.5)]' },
+    pink: { text: 'text-pink-400', hover: 'hover:text-pink-300', glow: 'hover:drop-shadow-[0_0_8px_rgba(236,72,153,0.5)]' },
+  };
 
   // Animation Studio API call function
   const generateAnimation = async () => {
     if (!studioPrompt.trim()) return;
     
-    // Check if user can perform action (first one is free)
-    if (!incrementAction()) return;
+    // Check if user can perform action (first one is free) - Animation Studio uses pink theme
+    if (!incrementAction('pink')) return;
+    
+    saveActivity({ type: 'animation', prompt: studioPrompt });
     
     setStudioLoading(true);
     setStudioError(null);
@@ -103,8 +157,22 @@ export default function Home() {
           setStudioCode(data.code);
           if (studioTab === 'svg') {
             setStudioCodeTab('svg');
+            // Save SVG to gallery
+            saveToGallery({
+              url: `data:image/svg+xml,${encodeURIComponent(data.code.svg || '')}`,
+              type: 'svg',
+              prompt: studioPrompt,
+              code: data.code.svg,
+            });
           } else {
             setStudioCodeTab('css');
+            // Save CSS animation code to gallery (as code snippet)
+            saveToGallery({
+              url: '',
+              type: 'css',
+              prompt: studioPrompt,
+              code: data.code.css,
+            });
           }
         } else {
           setStudioError(data.error || 'Failed to generate animation');
@@ -126,6 +194,12 @@ export default function Home() {
         
         if (data.success) {
           setStudioMediaUrl(data.url);
+          // Save GIF/Video to gallery
+          saveToGallery({
+            url: data.url,
+            type: studioTab as 'gif' | 'video',
+            prompt: studioPrompt,
+          });
         } else {
           setStudioError(data.error || 'Failed to generate media');
         }
@@ -206,9 +280,40 @@ export default function Home() {
       
       if (data.success) {
         setResult(data);
-        setAiResponse(data.result || data.description || data.message);
+        
+        // Handle image URL - set to the correct state based on mode
+        if (data.imageUrl) {
+          if (mode === "generate") {
+            setGeneratedImage(data.imageUrl);
+            // Save to gallery
+            saveToGallery({
+              url: data.imageUrl,
+              type: 'generate',
+              prompt: prompt,
+            });
+          } else if (mode === "sketch") {
+            setRenderedSketchImage(data.imageUrl);
+            // Save to gallery
+            saveToGallery({
+              url: data.imageUrl,
+              type: 'sketch',
+              prompt: sketchPrompt || 'Sketch rendering',
+            });
+          } else if (mode === "transform") {
+            setTransformedImage(data.imageUrl);
+            // Save to gallery
+            saveToGallery({
+              url: data.imageUrl,
+              type: 'transform',
+              prompt: transformPrompt || 'Image transformation',
+            });
+          }
+          setAiResponse(data.enhancedPrompt || data.generationPrompt || "Image generated successfully!");
+        } else {
+          setAiResponse(data.result || data.description || data.message);
+        }
       } else {
-        setAiResponse(`Error: ${data.error}`);
+        setAiResponse(`Error: ${data.error}${data.details ? ` - ${data.details}` : ''}`);
       }
     } catch (error) {
       console.error("API Error:", error);
@@ -221,8 +326,9 @@ export default function Home() {
   // Handle Generate (text-to-image)
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
-    // Check if user can perform action (first one is free)
-    if (!incrementAction()) return;
+    // Check if user can perform action (first one is free) - AI Workspace uses blue theme
+    if (!incrementAction('blue')) return;
+    saveActivity({ type: 'generate', prompt });
     await callGeminiAPI("generate");
   };
 
@@ -233,8 +339,9 @@ export default function Home() {
       setAiResponse("Please draw something on the canvas first");
       return;
     }
-    // Check if user can perform action (first one is free)
-    if (!incrementAction()) return;
+    // Check if user can perform action (first one is free) - AI Workspace uses blue theme
+    if (!incrementAction('blue')) return;
+    saveActivity({ type: 'sketch', prompt: sketchPrompt || 'Sketch rendering' });
     // Save the sketch as rendered image for the sidebar
     setRenderedSketchImage(canvasData);
     await callGeminiAPI("sketch", canvasData);
@@ -246,8 +353,9 @@ export default function Home() {
       setAiResponse("Please upload an image first");
       return;
     }
-    // Check if user can perform action (first one is free)
-    if (!incrementAction()) return;
+    // Check if user can perform action (first one is free) - AI Workspace uses blue theme
+    if (!incrementAction('blue')) return;
+    saveActivity({ type: 'transform', prompt: transformPrompt || 'Image transformation' });
     // Get the file from the file input
     const file = fileInputRef.current?.files?.[0];
     if (file) {
@@ -312,17 +420,19 @@ export default function Home() {
     };
   }, [setButtonTheme]);
 
-  // Handle ESC key to close zoomed image
+  // Handle ESC key to close zoomed image and fullscreen modes
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isImageZoomed) {
-        setIsImageZoomed(false);
+      if (e.key === 'Escape') {
+        if (isImageZoomed) setIsImageZoomed(false);
+        if (isWorkspaceFullscreen) setIsWorkspaceFullscreen(false);
+        if (isStudioFullscreen) setIsStudioFullscreen(false);
       }
     };
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isImageZoomed]);
+  }, [isImageZoomed, isWorkspaceFullscreen, isStudioFullscreen]);
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -334,8 +444,260 @@ export default function Home() {
 
   return (
     <main className="min-h-screen text-white overflow-x-hidden bg-zinc-900">
-      {/* Circular Scroll Progress with Back to Top */}
-      <ScrollProgress />
+      {/* Fullscreen AI Workspace Portal */}
+      {isWorkspaceFullscreen && (
+        <div className="fixed inset-0 z-9999 bg-zinc-950 flex flex-col">
+          {/* Toolbar Header */}
+          <div className="flex items-center justify-between px-6 py-4 bg-zinc-800 border-b border-white/5 shrink-0">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.5)]" />
+                <div className="w-3 h-3 rounded-full bg-yellow-500 shadow-[0_0_6px_rgba(234,179,8,0.5)]" />
+                <div className="w-3 h-3 rounded-full bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.5)]" />
+              </div>
+              <div className="h-6 w-px bg-white/10" />
+              <span className="text-sm font-semibold text-gray-300">AI Workspace - Fullscreen</span>
+            </div>
+            
+            <div className="flex items-center gap-4">
+              <div className="flex gap-1 bg-zinc-800/50 backdrop-blur-sm rounded-lg p-1 border border-white/5">
+                {(['generate', 'sketch', 'upload'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => { setActiveMode(mode); setAiResponse(null); }}
+                    className={`flex items-center gap-2 px-5 py-2 rounded-md font-medium text-sm transition-all ${
+                      activeMode === mode
+                        ? 'bg-linear-to-r from-blue-600 to-blue-400 text-white shadow-md'
+                        : 'text-gray-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {mode === 'generate' && <Sparkles className="w-4 h-4" />}
+                    {mode === 'sketch' && <Wand2 className="w-4 h-4" />}
+                    {mode === 'upload' && <ImagePlus className="w-4 h-4" />}
+                    {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setIsWorkspaceFullscreen(false)}
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white"
+                title="Exit Fullscreen (Esc)"
+              >
+                <Minimize2 className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Main Content Area */}
+          <div className="flex flex-1 min-h-0">
+            {/* Sidebar */}
+            <div className="w-80 bg-zinc-900/80 border-r border-white/5 p-6 space-y-6 overflow-y-auto shrink-0">
+              {activeMode === 'generate' && (
+                <>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Prompt</label>
+                    <PromptInput
+                      value={prompt}
+                      onChange={setPrompt}
+                      placeholder="Describe your vision in detail..."
+                      onSubmit={handleGenerate}
+                      disabled={loading}
+                      loading={loading}
+                      tags={['Cyberpunk', 'Fantasy', 'Portrait', 'Landscape']}
+                      onTagClick={(tag) => setPrompt(prev => prev ? `${prev}, ${tag.toLowerCase()} style` : `${tag} style`)}
+                    />
+                  </div>
+                  <GenerateButton text="Generate" loadingText="Generating" onClick={handleGenerate} disabled={!prompt.trim() || loading} loading={loading} />
+                </>
+              )}
+              {activeMode === 'sketch' && (
+                <>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Brush Size: {brushSize}px</label>
+                    <input type="range" min="1" max="50" value={brushSize} onChange={(e) => setBrushSize(Number(e.target.value))} className="w-full accent-purple-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Render Prompt</label>
+                    <PromptInput
+                      value={sketchPrompt}
+                      onChange={setSketchPrompt}
+                      placeholder="Describe how to render your sketch..."
+                      onSubmit={handleRenderSketch}
+                      disabled={!hasSketchDrawing || loading}
+                      loading={loading}
+                      tags={['Realistic', 'Cartoon', 'Digital Art', 'Watercolor']}
+                      onTagClick={(tag) => setSketchPrompt(prev => prev ? `${prev}, ${tag.toLowerCase()}` : `Render as ${tag.toLowerCase()}`)}
+                    />
+                  </div>
+                  <GenerateButton text="Render Sketch" loadingText="Rendering" onClick={handleRenderSketch} disabled={!hasSketchDrawing || loading} loading={loading} />
+                </>
+              )}
+              {activeMode === 'upload' && (
+                <>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Transform Prompt</label>
+                    <PromptInput
+                      value={transformPrompt}
+                      onChange={setTransformPrompt}
+                      placeholder="Describe the transformation..."
+                      onSubmit={handleTransformImage}
+                      disabled={!preview || loading}
+                      loading={loading}
+                      tags={['Style Transfer', 'Enhance', 'Upscale', 'Colorize']}
+                      onTagClick={(tag) => setTransformPrompt(prev => prev ? `${prev}, ${tag.toLowerCase()}` : tag)}
+                    />
+                  </div>
+                  <GenerateButton text="Transform" loadingText="Transforming" onClick={handleTransformImage} disabled={!preview || loading} loading={loading} />
+                </>
+              )}
+            </div>
+
+            {/* Main Canvas */}
+            <div className="flex-1 p-6 bg-zinc-950/50 overflow-auto">
+              {activeMode === 'generate' && (
+                <div className="h-full flex items-center justify-center bg-zinc-900/50 rounded-2xl border border-white/5 relative">
+                  {loading ? (
+                    <div className="text-center"><Loader /><p className="mt-4 text-gray-400">Generating...</p></div>
+                  ) : generatedImage ? (
+                    <img src={generatedImage} alt="Generated" className="max-w-full max-h-full object-contain rounded-xl" onClick={() => setIsImageZoomed(true)} />
+                  ) : (
+                    <div className="text-center text-gray-500"><Sparkles className="w-16 h-16 mx-auto mb-4 opacity-50" /><p>Enter a prompt and click Generate</p></div>
+                  )}
+                </div>
+              )}
+              {activeMode === 'sketch' && (
+                <div className="h-full rounded-2xl border border-white/10 relative overflow-hidden">
+                  <SketchCanvas ref={sketchCanvasRef} brushSize={brushSize} opacity={opacity} onBrushSizeChange={setBrushSize} onOpacityChange={setOpacity} onHasDrawingChange={setHasSketchDrawing} />
+                  {loading && <div className="absolute inset-0 bg-zinc-900/90 flex items-center justify-center z-50"><Loader /><p className="mt-4 text-gray-300">Rendering...</p></div>}
+                </div>
+              )}
+              {activeMode === 'upload' && (
+                <div className="h-full flex items-center justify-center bg-zinc-900/50 rounded-2xl border-2 border-dashed border-white/10">
+                  <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) { setPreview(URL.createObjectURL(file)); }}} />
+                  <div onClick={() => fileInputRef.current?.click()} className="cursor-pointer text-center">
+                    {preview ? <img src={preview} alt="Preview" className="max-w-full max-h-[60vh] object-contain rounded-xl" /> : <><Upload className="w-16 h-16 mx-auto mb-4 text-gray-500" /><p className="text-gray-400">Click to upload an image</p></>}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Right Sidebar */}
+            <div className="w-64 bg-zinc-900/80 border-l border-white/5 p-4 space-y-4 overflow-y-auto shrink-0">
+              <h3 className="text-xs font-semibold text-gray-400 uppercase">Result</h3>
+              {(activeMode === 'generate' && generatedImage) || (activeMode === 'sketch' && renderedSketchImage) || (activeMode === 'upload' && transformedImage) ? (
+                <img src={activeMode === 'generate' ? generatedImage! : activeMode === 'sketch' ? renderedSketchImage! : transformedImage!} alt="Result" className="w-full rounded-lg cursor-pointer" onClick={() => setIsImageZoomed(true)} />
+              ) : (
+                <div className="text-xs text-gray-500 text-center py-8">No result yet</div>
+              )}
+            </div>
+          </div>
+
+          {/* Status Bar */}
+          <div className="flex items-center justify-between px-6 py-2 bg-zinc-900/80 border-t border-white/5 text-xs text-gray-500 shrink-0">
+            <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" /><span>Ready</span></div>
+            <span>Press Esc to exit fullscreen</span>
+          </div>
+        </div>
+      )}
+
+      {/* Fullscreen Animation Studio Portal */}
+      {isStudioFullscreen && (
+        <div className="fixed inset-0 z-9999 bg-zinc-950 flex flex-col">
+          {/* Toolbar */}
+          <div className="bg-zinc-900 border-b border-white/5 px-4 py-2 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-red-500/80" />
+                <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
+                <div className="w-3 h-3 rounded-full bg-green-500/80" />
+              </div>
+              <div className="flex items-center gap-1 bg-zinc-800/50 rounded-lg p-1">
+                {(['css', 'svg', 'gif', 'video'] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => { setStudioTab(tab); setStudioCode(null); setStudioMediaUrl(null); setStudioError(null); }}
+                    className={`px-4 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                      studioTab === tab 
+                        ? tab === 'css' ? 'bg-cyan-600 text-white' : tab === 'svg' ? 'bg-green-600 text-white' : tab === 'gif' ? 'bg-pink-600 text-white' : 'bg-purple-600 text-white'
+                        : 'text-gray-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {tab.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button onClick={() => setIsStudioFullscreen(false)} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white" title="Exit Fullscreen">
+              <Minimize2 className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Main Content */}
+          <div className="flex flex-1 min-h-0">
+            {/* Left Panel */}
+            <div className="w-80 bg-zinc-900/80 border-r border-white/5 p-4 flex flex-col overflow-y-auto shrink-0">
+              <div className="mb-4">
+                <label className="text-xs font-medium text-gray-400 mb-2 block">Describe your animation</label>
+                <PromptInput
+                  value={studioPrompt}
+                  onChange={setStudioPrompt}
+                  placeholder="Describe your animation..."
+                  onSubmit={generateAnimation}
+                  disabled={studioLoading}
+                  loading={studioLoading}
+                  tags={['Bounce', 'Fade', 'Slide', 'Rotate', 'Pulse']}
+                  onTagClick={(tag) => setStudioPrompt(prev => prev ? `${prev} with ${tag.toLowerCase()} effect` : `Create a ${tag.toLowerCase()} animation`)}
+                />
+              </div>
+              <div className="mb-4">
+                <label className="text-xs font-medium text-gray-400 mb-2 block">Duration: {studioDuration}s</label>
+                <input type="range" min="0.5" max="5" step="0.5" value={studioDuration} onChange={(e) => setStudioDuration(e.target.value)} className="w-full accent-cyan-500" />
+              </div>
+              <GenerateButton text="Generate" loadingText="Generating" onClick={generateAnimation} disabled={!studioPrompt.trim() || studioLoading} loading={studioLoading} />
+            </div>
+
+            {/* Center Preview */}
+            <div className="flex-1 flex items-center justify-center p-8 bg-zinc-950/50" style={getPreviewBgStyle()}>
+              {studioLoading && <div className="text-center"><Loader2 /><p className="mt-4 text-gray-400">Generating...</p></div>}
+              {studioError && <div className="text-center text-red-400"><p>⚠️ {studioError}</p><button onClick={generateAnimation} className="mt-4 px-4 py-2 bg-red-600/20 text-red-400 rounded">Try Again</button></div>}
+              {!studioLoading && !studioError && studioCode?.svg && studioTab === 'svg' && <div dangerouslySetInnerHTML={{ __html: studioCode.svg }} style={{ maxWidth: '300px' }} />}
+              {!studioLoading && !studioError && studioCode?.css && studioTab === 'css' && <><div dangerouslySetInnerHTML={{ __html: studioCode.html || '<button class="animated-element">Animated</button>' }} /><style>{studioCode.css}</style></>}
+              {!studioLoading && !studioError && studioMediaUrl && (studioTab === 'gif' || studioTab === 'video') && (studioTab === 'gif' ? <img src={studioMediaUrl} alt="GIF" className="max-h-80 rounded-lg" /> : <video src={studioMediaUrl} controls autoPlay loop className="max-h-80 rounded-lg" />)}
+              {!studioLoading && !studioError && !studioCode && !studioMediaUrl && <div className="text-center text-gray-500"><Zap className="w-12 h-12 mx-auto mb-4 opacity-50" /><p>Enter a prompt and click Generate</p></div>}
+            </div>
+
+            {/* Right Code Panel */}
+            <div className="w-96 bg-zinc-900/80 border-l border-white/5 flex flex-col overflow-hidden shrink-0">
+              <div className="flex border-b border-white/5">
+                {(studioTab === 'svg' ? ['svg', 'css', 'react'] : ['css', 'html', 'react']).map((tab) => (
+                  <button key={tab} onClick={() => setStudioCodeTab(tab as any)} className={`flex-1 px-4 py-2 text-xs font-medium ${studioCodeTab === tab ? 'bg-zinc-800 text-white' : 'text-gray-400 hover:text-white'}`}>
+                    {tab.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+              <pre className="flex-1 p-4 text-xs text-gray-300 overflow-auto font-mono">
+                <code>{studioCode ? (studioCodeTab === 'svg' ? studioCode.svg : studioCodeTab === 'css' ? studioCode.css : studioCodeTab === 'html' ? studioCode.html : studioCode.react) || '// No code' : '// Generate to see code'}</code>
+              </pre>
+              <button onClick={copyStudioCode} disabled={!studioCode} className="m-4 py-2 text-xs bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-900 disabled:text-gray-600 text-gray-300 rounded-lg">Copy Code</button>
+            </div>
+          </div>
+
+          {/* Status Bar */}
+          <div className="flex items-center justify-between px-4 py-2 bg-zinc-900/80 border-t border-white/5 text-xs text-gray-500 shrink-0">
+            <span>{studioTab.toUpperCase()} Animation</span>
+            <span>Press Esc to exit fullscreen</span>
+          </div>
+        </div>
+      )}
+
+      {/* Circular Scroll Progress with Back to Top - Hidden in fullscreen */}
+      {!isWorkspaceFullscreen && !isStudioFullscreen && <ScrollProgress />}
+      
+      {/* Activity History Popup */}
+      <ActivityHistory isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
+      
+      {/* Gallery Popup */}
+      <Gallery isOpen={isGalleryOpen} onClose={() => setIsGalleryOpen(false)} />
       
       {/* ========== FIXED NAVBAR - Outside all sections ========== */}
       <nav className="fixed top-6 left-1/2 -translate-x-1/2 z-100 w-[90%] max-w-4xl">
@@ -346,8 +708,29 @@ export default function Home() {
           {/* Logo - Theme-aware */}
           <ThemedLogo />
           
-          {/* Auth Buttons */}
-          <AuthButtons />
+          {/* Center Navigation Links */}
+          <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-6">
+            <button
+              onClick={() => workspaceSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
+              className={`text-sm font-medium transition-all duration-300 ${navColorThemes[buttonTheme].text} ${navColorThemes[buttonTheme].hover} ${navColorThemes[buttonTheme].glow}`}
+            >
+              AI Workspace
+            </button>
+            <span className="text-white/20">|</span>
+            <button
+              onClick={() => studioSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
+              className={`text-sm font-medium transition-all duration-300 ${navColorThemes[buttonTheme].text} ${navColorThemes[buttonTheme].hover} ${navColorThemes[buttonTheme].glow}`}
+            >
+              Animation Studio
+            </button>
+          </div>
+          
+          {/* Right Side: Gallery + History + Auth */}
+          <div className="flex items-center gap-3">
+            {user && <GalleryButton onClick={() => setIsGalleryOpen(true)} />}
+            {user && <HistoryButton onClick={() => setIsHistoryOpen(true)} />}
+            <AuthButtons />
+          </div>
         </div>
       </nav>
 
@@ -434,14 +817,10 @@ export default function Home() {
                 Whether you're a designer, developer, or creator — SketchoFlow brings your imagination to life with cutting-edge AI tools.
               </p>
               </ScrollReveal>
-              <ScrollReveal variant="fadeUp" delay={0.65} duration={0.8}>
-              <p className="text-sm sm:text-base text-gray-500 mb-8 leading-relaxed font-normal tracking-wide">
-                From wireframes to polished designs, from rough sketches to production-ready assets. No limits, just creativity.
-              </p>
-              </ScrollReveal>
+
               
               {/* JoinToday Button */}
-              <div className="relative z-30 animate-fade-in-up" style={{ animationDelay: '0.8s', animationFillMode: 'both' }}>
+              <div className="relative mt-15 z-30 animate-fade-in-up" style={{ animationDelay: '0.8s', animationFillMode: 'both' }}>
                 <JoinToday onJoinNowClick={() => setIsSignupPopupOpen(true)} />
               </div>
 
@@ -454,35 +833,40 @@ export default function Home() {
               />
 
               {/* Zoomed Image Modal */}
-              {isImageZoomed && renderedSketchImage && (
-                <div 
-                  className="fixed inset-0 z-100 bg-black/90 backdrop-blur-sm flex items-center justify-center p-8"
-                  onClick={() => setIsImageZoomed(false)}
-                >
-                  <div className="relative max-w-4xl max-h-[90vh] w-full">
-                    <button
-                      onClick={() => setIsImageZoomed(false)}
-                      className="absolute -top-12 right-0 text-white/70 hover:text-white transition-colors text-sm flex items-center gap-2"
-                    >
-                      <span>Press ESC or click anywhere to close</span>
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                    <img 
-                      src={renderedSketchImage} 
-                      alt="Rendered sketch - zoomed"
-                      className="w-full h-full object-contain rounded-lg shadow-2xl"
-                      onClick={(e) => e.stopPropagation()}
-                    />
+              {(() => {
+                const currentImage = activeMode === 'generate' ? generatedImage : 
+                                     activeMode === 'sketch' ? renderedSketchImage : 
+                                     transformedImage;
+                return isImageZoomed && currentImage && (
+                  <div 
+                    className="fixed inset-0 z-100 bg-black/90 backdrop-blur-sm flex items-center justify-center p-8"
+                    onClick={() => setIsImageZoomed(false)}
+                  >
+                    <div className="relative max-w-4xl max-h-[90vh] w-full">
+                      <button
+                        onClick={() => setIsImageZoomed(false)}
+                        className="absolute -top-12 right-0 text-white/70 hover:text-white transition-colors text-sm flex items-center gap-2"
+                      >
+                        <span>Press ESC or click anywhere to close</span>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                      <img 
+                        src={currentImage} 
+                        alt="Generated image - zoomed"
+                        className="w-full h-full object-contain rounded-lg shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
           </div>
 
           {/* Image with Container Scroll Animation */}
-          <div className="mt-8 md:-mt-44 relative z-10">
+          <div className="mt-8 md:-mt-34 relative z-10">
             <ContainerScroll
               titleComponent={<></>}
             >
@@ -533,484 +917,313 @@ export default function Home() {
                   </p>
                 </ScrollReveal>
 
-                {/* Professional Workspace Tool Card - Transparent to blend with LightRays */}
-              <ScrollReveal variant="zoomIn" delay={0.7} duration={1}>
-              <div className="relative group ">
-                {/* Main card with transparent design */}
-                <div className="relative bg-zinc-900/90 backdrop-blur-sm rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)] border border-white/10">
-                  {/* Toolbar Header */}
-                  <div className="relative flex items-center justify-between px-6 py-4 bg-zinc-800 border-b border-white/5">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.5)]" />
-                    <div className="w-3 h-3 rounded-full bg-yellow-500 shadow-[0_0_6px_rgba(234,179,8,0.5)]" />
-                    <div className="w-3 h-3 rounded-full bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.5)]" />
-                  </div>
-                  <div className="h-6 w-px bg-white/10" />
-                  <span className="text-sm font-semibold text-gray-300">AI Workspace</span>
-                </div>
-                
-                {/* Tab Navigation */}
-                <div className="flex gap-1 bg-zinc-800/50 backdrop-blur-sm rounded-lg p-1 border border-white/5">
-                  {(['generate', 'sketch', 'upload'] as const).map((mode) => (
-                    <button
-                      key={mode}
-                      onClick={() => setActiveMode(mode)}
-                      className={`flex items-center gap-2 px-5 py-2 rounded-md font-medium text-sm transition-all ${
-                        activeMode === mode
-                          ? 'bg-linear-to-r from-blue-600 to-blue-400 text-white shadow-md shadow-zinc-500/25'
-                          : 'text-gray-400 hover:text-white hover:bg-white/5'
-                      }`}
-                    >
-                      {mode === 'generate' && <Sparkles className="w-4 h-4" />}
-                      {mode === 'sketch' && <Wand2 className="w-4 h-4" />}
-                      {mode === 'upload' && <ImagePlus className="w-4 h-4" />}
-                      {mode.charAt(0).toUpperCase() + mode.slice(1)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Main Content Area */}
-              <div className="flex">
-                {/* Sidebar - Tool Properties */}
-                <div className="w-80 bg-zinc-900/50 backdrop-blur-sm border-r border-white/5 p-6 space-y-6">
-                  {activeMode === 'generate' && (
-                    <>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-                          Prompt
-                        </label>
-                        <textarea
-                          value={prompt}
-                          onChange={(e) => setPrompt(e.target.value)}
-                          placeholder="Describe your vision in detail..."
-                          className="w-full h-32 px-4 py-3 bg-zinc-800/50 border border-white/10 rounded-xl text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 resize-none font-mono transition-all"
-                        />
+                {/* Professional Workspace Tool Card */}
+                <ScrollReveal variant="fadeUp" delay={0.6} duration={0.9}>
+                  <div className="relative bg-zinc-900/80 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
+                    {/* Toolbar Header */}
+                    <div className="flex items-center justify-between px-6 py-4 bg-zinc-800 border-b border-white/5">
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.5)]" />
+                          <div className="w-3 h-3 rounded-full bg-yellow-500 shadow-[0_0_6px_rgba(234,179,8,0.5)]" />
+                          <div className="w-3 h-3 rounded-full bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.5)]" />
+                        </div>
+                        <div className="h-6 w-px bg-white/10" />
+                        <span className="text-sm font-semibold text-gray-300">AI Workspace</span>
                       </div>
                       
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Style</label>
-                        <div className="relative">
-                          <select className="w-full px-4 py-3 pr-10 bg-zinc-800 border border-purple-500/30 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all appearance-none cursor-pointer hover:border-purple-500/50">
-                            <option className="bg-zinc-800 text-white py-2">Photorealistic</option>
-                            <option className="bg-zinc-800 text-white py-2">Anime</option>
-                            <option className="bg-zinc-800 text-white py-2">Oil Painting</option>
-                            <option className="bg-zinc-800 text-white py-2">Digital Art</option>
-                            <option className="bg-zinc-800 text-white py-2">3D Render</option>
-                            <option className="bg-zinc-800 text-white py-2">Watercolor</option>
-                          </select>
-                          <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-                            <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
+                      <div className="flex items-center gap-4">
+                        {/* Tab Navigation */}
+                        <div className="flex gap-1 bg-zinc-800/50 backdrop-blur-sm rounded-lg p-1 border border-white/5">
+                          {(['generate', 'sketch', 'upload'] as const).map((mode) => (
+                            <button
+                              key={mode}
+                              onClick={() => { setActiveMode(mode); setAiResponse(null); }}
+                              className={`flex items-center gap-2 px-5 py-2 rounded-md font-medium text-sm transition-all ${
+                                activeMode === mode
+                                  ? 'bg-linear-to-r from-blue-600 to-blue-400 text-white shadow-md shadow-zinc-500/25'
+                                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+                              }`}
+                            >
+                              {mode === 'generate' && <Sparkles className="w-4 h-4" />}
+                              {mode === 'sketch' && <Wand2 className="w-4 h-4" />}
+                              {mode === 'upload' && <ImagePlus className="w-4 h-4" />}
+                              {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                            </button>
+                          ))}
+                        </div>
+                        
+                        {/* Fullscreen Toggle Button */}
+                        <button
+                          onClick={() => setIsWorkspaceFullscreen(true)}
+                          className="p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white"
+                          title="Fullscreen"
+                        >
+                          <Maximize2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Main Content Area */}
+                    <div className="flex h-[600px]">
+                      {/* Sidebar - Tool Properties */}
+                      <div className="w-80 bg-zinc-900/50 backdrop-blur-sm border-r border-white/5 p-6 space-y-6 overflow-y-auto">
+                        {activeMode === 'generate' && (
+                          <>
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Prompt</label>
+                              <PromptInput
+                                value={prompt}
+                                onChange={setPrompt}
+                                placeholder="Describe your vision in detail..."
+                                onSubmit={handleGenerate}
+                                disabled={loading}
+                                loading={loading}
+                                tags={['Cyberpunk', 'Fantasy', 'Portrait', 'Landscape']}
+                                onTagClick={(tag) => setPrompt(prev => prev ? `${prev}, ${tag.toLowerCase()} style` : `${tag} style`)}
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Style</label>
+                              <div className="relative">
+                                <select className="w-full px-4 py-3 pr-10 bg-zinc-800 border border-purple-500/30 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all appearance-none cursor-pointer hover:border-purple-500/50">
+                                  <option className="bg-zinc-800 text-white py-2">Photorealistic</option>
+                                  <option className="bg-zinc-800 text-white py-2">Anime</option>
+                                  <option className="bg-zinc-800 text-white py-2">Oil Painting</option>
+                                  <option className="bg-zinc-800 text-white py-2">Digital Art</option>
+                                  <option className="bg-zinc-800 text-white py-2">3D Render</option>
+                                  <option className="bg-zinc-800 text-white py-2">Watercolor</option>
+                                </select>
+                                <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+                                  <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                  </svg>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Aspect Ratio</label>
+                              <div className="grid grid-cols-2 gap-2">
+                                {['16:9', '1:1', '9:16', '4:3'].map((ratio) => (
+                                  <button
+                                    key={ratio}
+                                    className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-gray-300 hover:border-blue-500 hover:text-white transition-all"
+                                  >
+                                    {ratio}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div 
+                              onClick={!loading && prompt ? handleGenerate : undefined} 
+                              className={`${!prompt || loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                            >
+                              <GenerateButton />
+                            </div>
+                          </>
+                        )}
+
+                        {activeMode === 'sketch' && (
+                          <>
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Canvas Settings</label>
+                              <div className="space-y-3">
+                                <div>
+                                  <label className="block text-xs text-gray-500 mb-2">Brush Size: {brushSize}px</label>
+                                  <input type="range" min="1" max="50" value={brushSize} onChange={(e) => setBrushSize(Number(e.target.value))} className="w-full accent-purple-600" />
+                                </div>
+                                <div>
+                                  <label className="block text-xs text-gray-500 mb-2">Opacity: {opacity}%</label>
+                                  <input type="range" min="10" max="100" value={opacity} onChange={(e) => setOpacity(Number(e.target.value))} className="w-full accent-purple-600" />
+                                </div>
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Enhancement Prompt</label>
+                              <PromptInput
+                                value={sketchPrompt}
+                                onChange={setSketchPrompt}
+                                placeholder="Describe how to enhance your sketch..."
+                                onSubmit={handleRenderSketch}
+                                disabled={!hasSketchDrawing || loading}
+                                loading={loading}
+                                tags={['Realistic', 'Cartoon', 'Digital Art', 'Watercolor']}
+                                onTagClick={(tag) => setSketchPrompt(prev => prev ? `${prev}, ${tag.toLowerCase()}` : `Render as ${tag.toLowerCase()}`)}
+                              />
+                            </div>
+
+                            <GenerateButton text="Render Sketch" loadingText="Processing" onClick={handleRenderSketch} disabled={!hasSketchDrawing || loading} loading={loading} />
+                          </>
+                        )}
+
+                        {activeMode === 'upload' && (
+                          <>
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Transformation</label>
+                              <PromptInput
+                                value={transformPrompt}
+                                onChange={setTransformPrompt}
+                                placeholder="Describe the transformation..."
+                                onSubmit={handleTransformImage}
+                                disabled={!preview || loading}
+                                loading={loading}
+                                tags={['Style Transfer', 'Enhance', 'Upscale', 'Colorize']}
+                                onTagClick={(tag) => setTransformPrompt(prev => prev ? `${prev}, ${tag.toLowerCase()}` : tag)}
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Strength</label>
+                              <input type="range" min="0" max="100" defaultValue="75" className="w-full accent-pink-600" />
+                              <div className="flex justify-between text-xs text-gray-500 mt-1">
+                                <span>Subtle</span>
+                                <span>Strong</span>
+                              </div>
+                            </div>
+
+                            <GenerateButton text="Transform" loadingText="Transforming" onClick={handleTransformImage} disabled={!preview || loading} loading={loading} />
+                          </>
+                        )}
+                      </div>
+
+                      {/* Main Canvas Area */}
+                      <div className="flex-1 p-8 bg-zinc-950/30 min-h-[600px]">
+                        {activeMode === 'generate' && (
+                          <div className="h-full flex items-center justify-center bg-zinc-900/50 backdrop-blur-sm rounded-2xl border border-white/5 relative overflow-hidden">
+                            <div className="absolute inset-0 opacity-5" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+                            
+                            {loading ? (
+                              <div className="relative text-center text-gray-400 w-full h-full flex flex-col items-center justify-center">
+                                <div className="relative w-64 h-40"><Loader /></div>
+                                <p className="text-lg font-medium mt-8">Generating your image...</p>
+                                <p className="text-sm mt-2 text-gray-500">This may take a few moments</p>
+                              </div>
+                            ) : generatedImage ? (
+                              <div className="relative w-full h-full flex items-center justify-center p-4">
+                                <img src={generatedImage} alt="Generated image" className="max-w-full max-h-full object-contain rounded-xl shadow-2xl cursor-pointer hover:scale-[1.02] transition-transform" onClick={() => setIsImageZoomed(true)} />
+                              </div>
+                            ) : (
+                              <div className="relative text-center text-gray-500">
+                                <Sparkles className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                                <p className="text-lg font-medium">Preview will appear here</p>
+                                <p className="text-sm mt-2">Enter a prompt and click Generate</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {activeMode === 'sketch' && (
+                          <div className="h-full rounded-2xl border border-white/10 relative overflow-hidden shadow-inner">
+                            <SketchCanvas ref={sketchCanvasRef} brushSize={brushSize} opacity={opacity} onBrushSizeChange={setBrushSize} onOpacityChange={setOpacity} onHasDrawingChange={setHasSketchDrawing} />
+                            {loading && (
+                              <div className="absolute inset-0 bg-zinc-900/90 backdrop-blur-sm flex flex-col items-center justify-center z-50">
+                                <div className="relative w-64 h-40"><Loader /></div>
+                                <p className="text-lg font-medium text-gray-300 mt-8">Rendering your sketch...</p>
+                                <p className="text-sm mt-2 text-gray-500">AI is enhancing your artwork</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {activeMode === 'upload' && (
+                          <div className="h-full flex flex-col bg-zinc-900/50 backdrop-blur-sm rounded-2xl border-2 border-dashed border-white/10 relative overflow-hidden">
+                            <div onClick={() => fileInputRef.current?.click()} className="flex-1 flex items-center justify-center cursor-pointer hover:border-pink-500/50 hover:bg-pink-500/5 transition-all group">
+                              {preview ? (
+                                <img src={preview} alt="preview" className="max-w-full max-h-full object-contain rounded-xl" />
+                              ) : (
+                                <div className="text-center text-gray-500 group-hover:text-pink-400 transition-colors">
+                                  <Upload className="w-16 h-16 mx-auto mb-4" />
+                                  <p className="text-lg font-medium">Drop image here or click to browse</p>
+                                  <p className="text-sm mt-2">PNG, JPG, WebP up to 10MB</p>
+                                </div>
+                              )}
+                            </div>
+                            {loading && (
+                              <div className="absolute inset-0 bg-zinc-900/90 backdrop-blur-sm flex flex-col items-center justify-center z-50">
+                                <div className="relative w-64 h-40"><Loader /></div>
+                                <p className="text-lg font-medium text-gray-300 mt-8">Transforming your image...</p>
+                                <p className="text-sm mt-2 text-gray-500">AI is analyzing and enhancing</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileInput} className="hidden" />
+                      </div>
+
+                      {/* Right Sidebar - Result & Export */}
+                      <div className="w-64 bg-zinc-900/50 backdrop-blur-sm border-l border-white/5 p-4 space-y-4 overflow-y-auto">
+                        <div>
+                          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
+                            {activeMode === 'sketch' ? 'Rendered Result' : activeMode === 'generate' ? 'Generated Image' : 'Transformed Image'}
+                          </h3>
+                          <div className="space-y-2">
+                            {((activeMode === 'generate' && generatedImage) || (activeMode === 'sketch' && renderedSketchImage) || (activeMode === 'upload' && transformedImage)) ? (
+                              <div onClick={() => setIsImageZoomed(true)} className="relative group cursor-pointer rounded-xl overflow-hidden border border-white/10 hover:border-purple-500/50 transition-all">
+                                <img src={activeMode === 'generate' ? generatedImage! : activeMode === 'sketch' ? renderedSketchImage! : transformedImage!} alt={activeMode === 'sketch' ? 'Rendered sketch' : activeMode === 'generate' ? 'Generated image' : 'Transformed image'} className="w-full h-32 object-cover" />
+                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                  <span className="text-white text-xs font-medium">Click to zoom</span>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="px-3 py-8 bg-zinc-800/30 rounded-xl border border-dashed border-white/10 text-center">
+                                <p className="text-xs text-gray-500">
+                                  {activeMode === 'sketch' ? 'Render a sketch to see the result here' : activeMode === 'generate' ? 'Generate an image to see the result' : 'Transform an image to see the result'}
+                                </p>
+                              </div>
+                            )}
                           </div>
                         </div>
-                    </div>
 
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Aspect Ratio</label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {['16:9', '1:1', '9:16', '4:3'].map((ratio) => (
-                          <button
-                            key={ratio}
-                            className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-gray-300 hover:border-blue-500 hover:text-white transition-all"
-                          >
-                            {ratio}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Quality</label>
-                      <input type="range" min="1" max="100" defaultValue="80" className="w-full accent-blue-600" />
-                      <div className="flex justify-between text-xs text-gray-500 mt-1">
-                        <span>Draft</span>
-                        <span>High Quality</span>
-                      </div>
-                    </div>
-
-                    <div 
-                      onClick={!loading && prompt ? handleGenerate : undefined} 
-                      className={`${!prompt || loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                    >
-                      <GenerateButton />
-                    </div>
-                  </>
-                )}
-
-                {activeMode === 'sketch' && (
-                  <>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-                        Canvas Settings
-                      </label>
-                      <div className="space-y-3">
                         <div>
-                          <label className="block text-xs text-gray-500 mb-2">Brush Size: {brushSize}px</label>
-                          <input 
-                            type="range" 
-                            min="1" 
-                            max="50" 
-                            value={brushSize}
-                            onChange={(e) => setBrushSize(Number(e.target.value))}
-                            className="w-full accent-purple-600" 
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-500 mb-2">Opacity: {opacity}%</label>
-                          <input 
-                            type="range" 
-                            min="10" 
-                            max="100" 
-                            value={opacity}
-                            onChange={(e) => setOpacity(Number(e.target.value))}
-                            className="w-full accent-purple-600" 
-                          />
+                          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Export As</h3>
+                          <div className="space-y-1.5">
+                            <button onClick={() => handleExport(() => { if (activeMode === 'sketch' && sketchCanvasRef.current) { const dataUrl = sketchCanvasRef.current.getCanvasDataUrl(); if (dataUrl) { const link = document.createElement('a'); link.download = 'sketch.png'; link.href = dataUrl; link.click(); } } else if (aiResponse) { const link = document.createElement('a'); link.download = 'generated.png'; link.href = aiResponse; link.click(); } })} className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-purple-600/20 hover:text-purple-300 rounded-lg cursor-pointer transition-all flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-purple-500"></span>PNG
+                            </button>
+                            <button onClick={() => handleExport(() => { const canvas = document.querySelector('canvas'); if (canvas) { const dataUrl = canvas.toDataURL('image/jpeg', 0.9); const link = document.createElement('a'); link.download = 'image.jpg'; link.href = dataUrl; link.click(); } })} className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-blue-600/20 hover:text-blue-300 rounded-lg cursor-pointer transition-all flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-blue-500"></span>JPEG
+                            </button>
+                            <button onClick={() => handleExport(() => { const canvas = document.querySelector('canvas'); if (canvas) { const dataUrl = canvas.toDataURL('image/webp', 0.9); const link = document.createElement('a'); link.download = 'image.webp'; link.href = dataUrl; link.click(); } })} className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-green-600/20 hover:text-green-300 rounded-lg cursor-pointer transition-all flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-green-500"></span>WebP
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-                        Enhancement Prompt
-                      </label>
-                      <textarea
-                        value={sketchPrompt}
-                        onChange={(e) => setSketchPrompt(e.target.value)}
-                        placeholder="Describe how to enhance your sketch..."
-                        className="w-full h-24 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                      />
-                    </div>
-
-                    <GenerateButton
-                      text="Render Sketch"
-                      loadingText="Processing"
-                      onClick={handleRenderSketch}
-                      disabled={loading}
-                      loading={loading}
-                    />
-                  </>
-                )}
-
-                {activeMode === 'upload' && (
-                  <>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-                        Transformation
-                      </label>
-                      <textarea
-                        value={transformPrompt}
-                        onChange={(e) => setTransformPrompt(e.target.value)}
-                        placeholder="Describe the transformation..."
-                        className="w-full h-24 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500 resize-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Strength</label>
-                      <input type="range" min="0" max="100" defaultValue="75" className="w-full accent-pink-600" />
-                      <div className="flex justify-between text-xs text-gray-500 mt-1">
-                        <span>Subtle</span>
-                        <span>Strong</span>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Mode</label>
-                      <select className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-pink-500">
-                        <option>Enhance</option>
-                        <option>Style Transfer</option>
-                        <option>Upscale</option>
-                        <option>Remove Background</option>
-                      </select>
-                    </div>
-
-                    <GenerateButton
-                      text="Transform"
-                      loadingText="Transforming"
-                      onClick={handleTransformImage}
-                      disabled={!preview || loading}
-                      loading={loading}
-                    />
-                  </>
-                )}
-              </div>
-
-              {/* Main Canvas Area */}
-              <div className="flex-1 p-8 min-h-[600px] bg-zinc-950/30">
-                {activeMode === 'generate' && (
-                  <div className="h-full flex items-center justify-center bg-zinc-900/50 backdrop-blur-sm rounded-2xl border border-white/5 relative overflow-hidden">
-                    {/* Subtle grid pattern */}
-                    <div className="absolute inset-0 opacity-5" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
-                    
-                    {loading ? (
-                      <div className="relative text-center text-gray-400 w-full h-full flex flex-col items-center justify-center">
-                        <div className="relative w-64 h-40">
-                          <Loader />
+                    {/* Auth Gate Blur Overlay for Workspace */}
+                    {!user && (
+                      <div className="absolute inset-0 z-40 backdrop-blur-md bg-zinc-900/60 flex flex-col items-center justify-center rounded-2xl">
+                        <div className="text-center space-y-6 px-8">
+                          <div className="space-y-2">
+                            <h3 className="text-2xl font-bold text-white">Unlock AI Workspace</h3>
+                            <p className="text-gray-400 max-w-md">Sign in or create an account to access all AI-powered creative tools</p>
+                          </div>
+                          <div className="flex items-center justify-center gap-4">
+                            <BlurButton variant="blue" onClick={() => openAuthGate('blue')}>Sign In</BlurButton>
+                            <BlurButton variant="blue" onClick={() => openAuthGate('blue')}>Sign Up</BlurButton>
+                          </div>
                         </div>
-                        <p className="text-lg font-medium mt-8">Generating your image...</p>
-                        <p className="text-sm mt-2 text-gray-500">This may take a few moments</p>
-                      </div>
-                    ) : result ? (
-                      <div className="relative w-full h-full flex flex-col items-center justify-center p-8">
-                        <div className="max-w-full max-h-full bg-linear-to-br from-purple-500/20 to-blue-500/20 rounded-2xl p-8 border border-purple-500/30 backdrop-blur-sm">
-                          <p className="text-lg font-medium text-green-400 text-center">{result.message || "Generation complete!"}</p>
-                          {aiResponse && (
-                            <div className="mt-4 max-h-48 overflow-y-auto">
-                              <p className="text-xs font-semibold text-purple-400 mb-2">AI Response:</p>
-                              <p className="text-sm text-gray-300">{aiResponse}</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="relative text-center text-gray-500">
-                        <Sparkles className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                        <p className="text-lg font-medium">Preview will appear here</p>
-                        <p className="text-sm mt-2">Enter a prompt and click Generate</p>
                       </div>
                     )}
+
+                    {/* Status Bar */}
+                    <div className="flex items-center justify-between px-6 py-2.5 bg-zinc-900/50 border-t border-white/5 text-xs text-gray-500">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                        <span>Ready</span>
+                      </div>
+                      <span>AI Model: Vision</span>
+                      <span>100% • 1920x1080</span>
+                    </div>
                   </div>
-                )}
-
-                {activeMode === 'sketch' && (
-                  <div className="h-full rounded-2xl border border-white/10 relative overflow-hidden shadow-inner">
-                    <SketchCanvas 
-                      ref={sketchCanvasRef}
-                      brushSize={brushSize}
-                      opacity={opacity}
-                      onBrushSizeChange={setBrushSize}
-                      onOpacityChange={setOpacity}
-                    />
-                    {/* Loading overlay for sketch rendering */}
-                    {loading && activeMode === 'sketch' && (
-                      <div className="absolute inset-0 bg-zinc-900/90 backdrop-blur-sm flex flex-col items-center justify-center z-50">
-                        <div className="relative w-64 h-40">
-                          <Loader />
-                        </div>
-                        <p className="text-lg font-medium text-gray-300 mt-8">Rendering your sketch...</p>
-                        <p className="text-sm mt-2 text-gray-500">AI is enhancing your artwork</p>
-                      </div>
-                    )}
-                    {/* AI Response overlay */}
-                    {aiResponse && activeMode === 'sketch' && !loading && (
-                      <div className="absolute bottom-20 left-4 right-4 bg-zinc-900/95 backdrop-blur-sm rounded-xl p-4 border border-purple-500/30 max-h-32 overflow-y-auto">
-                        <p className="text-xs font-semibold text-purple-400 mb-2">AI Response:</p>
-                        <p className="text-sm text-gray-300">{aiResponse}</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {activeMode === 'upload' && (
-                  <div className="h-full flex flex-col bg-zinc-900/50 backdrop-blur-sm rounded-2xl border-2 border-dashed border-white/10 relative overflow-hidden">
-                    <div
-                      onClick={() => fileInputRef.current?.click()}
-                      className="flex-1 flex items-center justify-center cursor-pointer hover:border-pink-500/50 hover:bg-pink-500/5 transition-all group"
-                    >
-                      {preview ? (
-                        <img src={preview} alt="preview" className="max-w-full max-h-full object-contain rounded-xl" />
-                      ) : (
-                        <div className="text-center text-gray-500 group-hover:text-pink-400 transition-colors">
-                          <Upload className="w-16 h-16 mx-auto mb-4" />
-                          <p className="text-lg font-medium">Drop image here or click to browse</p>
-                          <p className="text-sm mt-2">PNG, JPG, WebP up to 10MB</p>
-                        </div>
-                      )}
-                    </div>
-                    {/* Loading overlay for image transform */}
-                    {loading && activeMode === 'upload' && (
-                      <div className="absolute inset-0 bg-zinc-900/90 backdrop-blur-sm flex flex-col items-center justify-center z-50">
-                        <div className="relative w-64 h-40">
-                          <Loader />
-                        </div>
-                        <p className="text-lg font-medium text-gray-300 mt-8">Transforming your image...</p>
-                        <p className="text-sm mt-2 text-gray-500">AI is analyzing and enhancing</p>
-                      </div>
-                    )}
-                    {/* AI Response overlay */}
-                    {aiResponse && activeMode === 'upload' && !loading && (
-                      <div className="absolute bottom-4 left-4 right-4 bg-zinc-900/95 backdrop-blur-sm rounded-xl p-4 border border-pink-500/30 max-h-32 overflow-y-auto">
-                        <p className="text-xs font-semibold text-pink-400 mb-2">AI Response:</p>
-                        <p className="text-sm text-gray-300">{aiResponse}</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileInput}
-                  className="hidden"
-                />
-              </div>
-
-              {/* Right Sidebar - Rendered Image/Export */}
-              <div className="w-64 bg-zinc-900/50 backdrop-blur-sm border-l border-white/5 p-4 space-y-4">
-                <div>
-                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-                    {activeMode === 'sketch' ? 'Rendered Result' : 'Generated Image'}
-                  </h3>
-                  <div className="space-y-2">
-                    {renderedSketchImage && activeMode === 'sketch' ? (
-                      <div 
-                        onClick={() => setIsImageZoomed(true)}
-                        className="relative group cursor-pointer rounded-xl overflow-hidden border border-white/10 hover:border-purple-500/50 transition-all"
-                      >
-                        <img 
-                          src={renderedSketchImage} 
-                          alt="Rendered sketch"
-                          className="w-full h-32 object-cover"
-                        />
-                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <span className="text-white text-xs font-medium">Click to zoom</span>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="px-3 py-8 bg-zinc-800/30 rounded-xl border border-dashed border-white/10 text-center">
-                        <p className="text-xs text-gray-500">
-                          {activeMode === 'sketch' ? 'Render a sketch to see the result here' : 'No image generated yet'}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Export As</h3>
-                  <div className="space-y-1.5">
-                    <button 
-                      onClick={() => handleExport(() => {
-                        if (activeMode === 'sketch' && sketchCanvasRef.current) {
-                          const dataUrl = sketchCanvasRef.current.getCanvasDataUrl();
-                          if (dataUrl) {
-                            const link = document.createElement('a');
-                            link.download = 'sketch.png';
-                            link.href = dataUrl;
-                            link.click();
-                          }
-                        } else if (aiResponse) {
-                          const link = document.createElement('a');
-                          link.download = 'generated.png';
-                          link.href = aiResponse;
-                          link.click();
-                        }
-                      })}
-                      className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-purple-600/20 hover:text-purple-300 rounded-lg cursor-pointer transition-all flex items-center gap-2"
-                    >
-                      <span className="w-2 h-2 rounded-full bg-purple-500"></span>
-                      PNG
-                    </button>
-                    <button 
-                      onClick={() => handleExport(() => {
-                        if (activeMode === 'sketch' && sketchCanvasRef.current) {
-                          const canvas = document.querySelector('canvas');
-                          if (canvas) {
-                            const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-                            const link = document.createElement('a');
-                            link.download = 'sketch.jpg';
-                            link.href = dataUrl;
-                            link.click();
-                          }
-                        } else if (aiResponse) {
-                          const link = document.createElement('a');
-                          link.download = 'generated.jpg';
-                          link.href = aiResponse.replace('image/png', 'image/jpeg');
-                          link.click();
-                        }
-                      })}
-                      className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-blue-600/20 hover:text-blue-300 rounded-lg cursor-pointer transition-all flex items-center gap-2"
-                    >
-                      <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                      JPEG
-                    </button>
-                    <button 
-                      onClick={() => handleExport(() => {
-                        if (activeMode === 'sketch' && sketchCanvasRef.current) {
-                          const canvas = document.querySelector('canvas');
-                          if (canvas) {
-                            const dataUrl = canvas.toDataURL('image/webp', 0.9);
-                            const link = document.createElement('a');
-                            link.download = 'sketch.webp';
-                            link.href = dataUrl;
-                            link.click();
-                          }
-                        } else if (aiResponse) {
-                          const link = document.createElement('a');
-                          link.download = 'generated.webp';
-                          link.href = aiResponse;
-                          link.click();
-                        }
-                      })}
-                      className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-green-600/20 hover:text-green-300 rounded-lg cursor-pointer transition-all flex items-center gap-2"
-                    >
-                      <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                      WebP
-                    </button>
-                    <button 
-                      onClick={() => handleExport(() => {
-                        const canvas = document.querySelector('canvas');
-                        if (canvas) {
-                          canvas.toBlob((blob) => {
-                            if (blob) {
-                              const url = URL.createObjectURL(blob);
-                              const link = document.createElement('a');
-                              link.download = 'image.bmp';
-                              link.href = url;
-                              link.click();
-                              URL.revokeObjectURL(url);
-                            }
-                          }, 'image/bmp');
-                        }
-                      })}
-                      className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-orange-600/20 hover:text-orange-300 rounded-lg cursor-pointer transition-all flex items-center gap-2"
-                    >
-                      <span className="w-2 h-2 rounded-full bg-orange-500"></span>
-                      BMP
-                    </button>
-                    <button 
-                      onClick={() => handleExport(async () => {
-                        const canvas = document.querySelector('canvas');
-                        if (canvas) {
-                          try {
-                            const dataUrl = canvas.toDataURL('image/png');
-                            const response = await fetch(dataUrl);
-                            const blob = await response.blob();
-                            const item = new ClipboardItem({ 'image/png': blob });
-                            await navigator.clipboard.write([item]);
-                            alert('Image copied to clipboard!');
-                          } catch (err) {
-                            console.error('Failed to copy:', err);
-                          }
-                        }
-                      })}
-                      className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-pink-600/20 hover:text-pink-300 rounded-lg cursor-pointer transition-all flex items-center gap-2"
-                    >
-                      <span className="w-2 h-2 rounded-full bg-pink-500"></span>
-                      Copy to Clipboard
-                    </button>
-                  </div>
-                </div>
+                </ScrollReveal>
               </div>
             </div>
-
-            {/* Status Bar */}
-            <div className="flex items-center justify-between px-6 py-2.5 bg-zinc-900/50 border-t border-white/5 text-xs text-gray-500">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                <span>Ready</span>
-              </div>
-              <span>AI Model: Vision</span>
-              <span>100% • 1920x1080</span>
-            </div>
-                </div>
-              </div>
-              </ScrollReveal>
-            </div>
-          </div>
           </div>
         </div>
       </section>
@@ -1275,7 +1488,7 @@ export default function Home() {
 
             {/* Animation Studio Workspace */}
             <ScrollReveal variant="zoomIn" delay={0.7} duration={1}>
-            <div className="bg-zinc-900/80 backdrop-blur-xl rounded-xl border border-white/10 shadow-2xl overflow-hidden" suppressHydrationWarning>
+            <div className="relative bg-zinc-900/80 backdrop-blur-xl border border-white/10 shadow-2xl overflow-hidden rounded-xl" suppressHydrationWarning>
               {/* Top Toolbar with 4 Tabs */}
               <div className="bg-zinc-950/90 border-b border-white/5 px-4 py-2 flex items-center justify-between">
                 <div className="flex items-center gap-6">
@@ -1313,6 +1526,14 @@ export default function Home() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {/* Fullscreen Toggle Button */}
+                  <button
+                    onClick={() => setIsStudioFullscreen(true)}
+                    className="p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white"
+                    title="Fullscreen"
+                  >
+                    <Maximize2 className="w-4 h-4" />
+                  </button>
                   <button 
                     onClick={() => handleExport(() => {
                       if (studioMediaUrl) {
@@ -1321,11 +1542,64 @@ export default function Home() {
                         link.download = `animation.${studioTab === 'gif' ? 'gif' : 'mp4'}`;
                         link.click();
                       } else if (studioCode) {
-                        const blob = new Blob([studioCode.css || studioCode.svg || ''], { type: 'text/plain' });
+                        // Determine content and file extension based on current code tab
+                        let content = '';
+                        let extension = '';
+                        let mimeType = 'text/plain';
+                        
+                        if (studioTab === 'svg') {
+                          // SVG tab - export based on code tab
+                          if (studioCodeTab === 'svg') {
+                            content = studioCode.svg || '';
+                            extension = 'svg';
+                            mimeType = 'image/svg+xml';
+                          } else if (studioCodeTab === 'react') {
+                            content = studioCode.react || '';
+                            extension = 'tsx';
+                            mimeType = 'text/typescript';
+                          } else {
+                            content = studioCode.css || '';
+                            extension = 'css';
+                            mimeType = 'text/css';
+                          }
+                        } else {
+                          // CSS tab - export based on code tab
+                          if (studioCodeTab === 'css') {
+                            content = studioCode.css || '';
+                            extension = 'css';
+                            mimeType = 'text/css';
+                          } else if (studioCodeTab === 'html') {
+                            // Combine HTML with CSS in a complete HTML file
+                            const htmlContent = studioCode.html || '';
+                            const cssContent = studioCode.css || '';
+                            content = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Animation</title>
+  <style>
+${cssContent}
+  </style>
+</head>
+<body>
+  ${htmlContent}
+</body>
+</html>`;
+                            extension = 'html';
+                            mimeType = 'text/html';
+                          } else if (studioCodeTab === 'react') {
+                            content = studioCode.react || '';
+                            extension = 'tsx';
+                            mimeType = 'text/typescript';
+                          }
+                        }
+                        
+                        const blob = new Blob([content], { type: mimeType });
                         const url = URL.createObjectURL(blob);
                         const link = document.createElement('a');
                         link.href = url;
-                        link.download = `animation.${studioTab}`;
+                        link.download = `animation.${extension}`;
                         link.click();
                         URL.revokeObjectURL(url);
                       }
@@ -1341,19 +1615,21 @@ export default function Home() {
               {/* Main Workspace */}
               <div className="flex h-[550px]">
                 {/* Left - Prompt Input Panel */}
-                <div className="w-80 bg-zinc-950/50 border-r border-white/5 p-4 flex flex-col">
+                <div className={`w-80 bg-zinc-950/50 border-r border-white/5 p-4 flex flex-col shrink-0 overflow-y-auto`}>
                   <div className="mb-4">
                     <label className="text-xs font-medium text-gray-400 mb-2 block">Describe your animation</label>
-                    <textarea 
+                    <PromptInput
                       value={studioPrompt}
-                      onChange={(e) => setStudioPrompt(e.target.value)}
-                      className="w-full h-32 bg-zinc-900 border border-white/10 rounded-lg px-4 py-3 text-sm text-gray-300 placeholder-gray-500 resize-none focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50"
+                      onChange={setStudioPrompt}
                       placeholder={
                         studioTab === 'css' ? "Make a bouncing glowing button animation with a pulsing cyan shadow..." :
                         studioTab === 'svg' ? "Create an animated loading spinner with rotating circles..." :
                         studioTab === 'gif' ? "A cute cat playing with a ball of yarn, playful movement..." :
                         "A serene ocean sunset with waves gently rolling onto the beach..."
                       }
+                      onSubmit={generateAnimation}
+                      disabled={studioLoading}
+                      loading={studioLoading}
                     />
                   </div>
 
@@ -1458,9 +1734,7 @@ export default function Home() {
                     {/* Loading State */}
                     {studioLoading && (
                       <div className="absolute inset-0 bg-zinc-900/90 backdrop-blur-sm flex flex-col items-center justify-center z-10">
-                        <div className="relative w-64 h-40">
-                          <Loader />
-                        </div>
+                        <Loader2 />
                         <p className="text-lg font-medium text-gray-300 mt-8">
                           {studioTab === 'css' ? 'Generating CSS Animation...' :
                            studioTab === 'svg' ? 'Creating SVG Animation...' :
@@ -1490,12 +1764,19 @@ export default function Home() {
                     {/* CSS/SVG Preview */}
                     {!studioLoading && !studioError && (studioTab === 'css' || studioTab === 'svg') && (
                       <div className="relative">
-                        {studioCode?.svg ? (
+                        {studioTab === 'svg' && studioCode?.svg ? (
                           <div 
-                            className="max-w-xs max-h-64"
-                            dangerouslySetInnerHTML={{ __html: studioCode.svg }} 
-                          />
-                        ) : studioCode?.css ? (
+                            className="flex items-center justify-center"
+                            style={{ minWidth: '200px', minHeight: '200px' }}
+                          >
+                            <div 
+                              className="svg-preview"
+                              dangerouslySetInnerHTML={{ __html: studioCode.svg }} 
+                              style={{ maxWidth: '300px', maxHeight: '300px' }}
+                            />
+                            {studioCode.css && <style>{studioCode.css}</style>}
+                          </div>
+                        ) : studioTab === 'css' && studioCode?.css ? (
                           <>
                             <div 
                               className="animated-preview"
@@ -1668,6 +1949,22 @@ ${studioTab === 'css' ? `.animated-element {
                   </div>
                 </div>
               </div>
+
+              {/* Auth Gate Blur Overlay for Animation Studio */}
+              {!user && (
+                <div className="absolute inset-0 z-40 backdrop-blur-md bg-zinc-900/60 flex flex-col items-center justify-center rounded-xl">
+                  <div className="text-center space-y-6 px-8">
+                    <div className="space-y-2">
+                      <h3 className="text-2xl font-bold text-white">Unlock Animation Studio</h3>
+                      <p className="text-gray-400 max-w-md">Sign in or create an account to create CSS, SVG, GIF, and Video animations</p>
+                    </div>
+                    <div className="flex items-center justify-center gap-4">
+                      <BlurButton variant="pink" onClick={() => openAuthGate('pink')}>Sign In</BlurButton>
+                      <BlurButton variant="pink" onClick={() => openAuthGate('pink')}>Sign Up</BlurButton>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Bottom Status Bar */}
               <div className="bg-zinc-950/90 border-t border-white/5 px-4 py-2 flex items-center justify-between">

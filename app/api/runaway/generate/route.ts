@@ -4,16 +4,18 @@ export async function POST(req: Request) {
   try {
     const { prompt } = await req.json();
 
-    const response = await fetch("https://api.runwayml.com/v1/generations", {
+    const response = await fetch("https://api.dev.runwayml.com/v1/image_to_video", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.RUNWAY_API_KEY}`,
+        "Authorization": `Bearer ${process.env.RUNWAY_API_KEY}`,
+        "X-Runway-Version": "2024-11-06",
       },
       body: JSON.stringify({
-        model: "gen2", // Runway Gen-2 model
-        prompt,
-        size: "1280x720",
+        model: "gen3a_turbo",
+        promptText: prompt,
+        duration: 5,
+        ratio: "16:9",
       }),
     });
 

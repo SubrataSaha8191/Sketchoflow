@@ -26,6 +26,15 @@ export const SplineScene = forwardRef<SplineSceneRef, SplineSceneProps>(
 
     const handleLoad = (spline: Application) => {
       splineRef.current = spline
+      // Set high quality rendering
+      if (spline) {
+        try {
+          // Enable high quality settings if available
+          spline.setZoom && spline.setZoom(1);
+        } catch (e) {
+          // Ignore if method not available
+        }
+      }
       onLoad?.(spline)
     }
 
@@ -37,11 +46,12 @@ export const SplineScene = forwardRef<SplineSceneRef, SplineSceneProps>(
           </div>
         }
       >
-        <div style={style} className={className}>
+        <div style={{ ...style, imageRendering: 'high-quality' }} className={className}>
           <Spline
             scene={scene}
             className="w-full h-full"
             onLoad={handleLoad}
+            style={{ imageRendering: 'auto' }}
           />
         </div>
       </Suspense>
