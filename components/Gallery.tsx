@@ -65,8 +65,19 @@ const STORAGE_KEY = 'sketchoflow_gallery';
 // Save to gallery (both local and Cloudinary)
 export const saveToGallery = async (item: Omit<GalleryItem, 'id' | 'createdAt'>) => {
   try {
-    // Save to Cloudinary if it's an image/media URL
-    if (item.url && (item.url.startsWith('data:') || item.url.startsWith('http'))) {
+    // For CSS/SVG code animations, save to local storage only (no Cloudinary upload needed)
+    if (item.type === 'css' || (item.type === 'svg' && item.code)) {
+      const localItem = saveToLocalGallery({
+        ...item,
+        id: Date.now().toString(),
+        createdAt: new Date().toISOString(),
+      });
+      window.dispatchEvent(new CustomEvent('galleryUpdated'));
+      return localItem;
+    }
+
+    // Save to Cloudinary only if it's a real HTTP URL (not data URLs)
+    if (item.url && item.url.startsWith('http')) {
       const response = await fetch('/api/gallery/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -92,7 +103,7 @@ export const saveToGallery = async (item: Omit<GalleryItem, 'id' | 'createdAt'>)
       }
     }
 
-    // Fallback to local storage only for non-image content (like code)
+    // Fallback to local storage for data URLs or any other content
     const localItem = saveToLocalGallery({
       ...item,
       id: Date.now().toString(),
@@ -154,27 +165,36 @@ const Gallery: React.FC<GalleryProps> = ({ isOpen, onClose }) => {
 
   const fetchGallery = useCallback(async () => {
     setLoading(true);
+    let cloudinaryItems: GalleryItem[] = [];
+    
     try {
       // Try to fetch from Cloudinary first
       const response = await fetch(`/api/gallery?limit=50${filter !== 'all' ? `&type=${filter}` : ''}`);
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.data.length > 0) {
-          setItems(data.data);
-          setLoading(false);
-          return;
+          cloudinaryItems = data.data;
         }
       }
     } catch (error) {
       console.error('Failed to fetch from Cloudinary:', error);
     }
 
-    // Fallback to local storage
+    // Get local storage items
     let localItems = getLocalGallery();
     if (filter !== 'all') {
       localItems = localItems.filter(item => item.type === filter);
     }
-    setItems(localItems);
+
+    // Merge Cloudinary and local items, removing duplicates (prefer Cloudinary version)
+    const cloudinaryIds = new Set(cloudinaryItems.map(item => item.id));
+    const uniqueLocalItems = localItems.filter(item => !cloudinaryIds.has(item.id));
+    const allItems = [...cloudinaryItems, ...uniqueLocalItems];
+    
+    // Sort by creation date (newest first)
+    allItems.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    
+    setItems(allItems);
     setLoading(false);
   }, [filter]);
 
@@ -306,7 +326,11 @@ const Gallery: React.FC<GalleryProps> = ({ isOpen, onClose }) => {
                   onClick={() => setSelectedItem(item)}
                 >
                   {/* Thumbnail */}
-                  {item.type === 'css' || item.type === 'svg' ? (
+                  {item.type === 'svg' && item.code ? (
+                    <div className="w-full h-full flex items-center justify-center bg-linear-to-br from-zinc-800 to-zinc-900 p-4">
+                      <div dangerouslySetInnerHTML={{ __html: item.code }} className="w-full h-full flex items-center justify-center" />
+                    </div>
+                  ) : item.type === 'css' ? (
                     <div className="w-full h-full flex items-center justify-center bg-linear-to-br from-zinc-800 to-zinc-900">
                       <Code className="w-12 h-12 text-gray-500" />
                     </div>
@@ -364,7 +388,15 @@ const Gallery: React.FC<GalleryProps> = ({ isOpen, onClose }) => {
           <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-3xl bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl z-301 overflow-hidden">
             {/* Image/Preview */}
             <div className="relative aspect-video bg-zinc-950 flex items-center justify-center">
-              {selectedItem.type === 'css' || selectedItem.type === 'svg' ? (
+              {selectedItem.type === 'svg' && selectedItem.code ? (
+                <div className="p-8 w-full h-full flex items-center justify-center" style={{ minHeight: '400px' }}>
+                  <div 
+                    className="svg-preview-modal"
+                    dangerouslySetInnerHTML={{ __html: selectedItem.code }} 
+                    style={{ width: '100%', maxWidth: '500px', maxHeight: '500px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} 
+                  />
+                </div>
+              ) : selectedItem.type === 'css' ? (
                 <div className="p-8 w-full">
                   <pre className="text-xs text-gray-300 overflow-auto max-h-64">
                     <code>{selectedItem.code || 'Code preview not available'}</code>

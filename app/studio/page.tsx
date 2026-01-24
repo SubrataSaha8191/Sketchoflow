@@ -743,27 +743,51 @@ ${cssContent}
 
                     {/* CSS/SVG Preview */}
                     {!studioLoading && !studioError && (studioTab === 'css' || studioTab === 'svg') && (
-                      <div className="relative">
+                      <div className="relative w-full h-full flex items-center justify-center">
                         {studioTab === 'svg' && studioCode?.svg ? (
-                          <div 
-                            className="flex items-center justify-center"
-                            style={{ minWidth: '200px', minHeight: '200px' }}
-                          >
-                            <div 
-                              className="svg-preview"
-                              dangerouslySetInnerHTML={{ __html: studioCode.svg }} 
-                              style={{ maxWidth: '300px', maxHeight: '300px' }}
+                          <div className="flex items-center justify-center w-full h-full p-6">
+                            <div
+                              key={studioCode.svg}
+                              className="svg-preview w-full h-full flex items-center justify-center bg-black/40 rounded-lg"
+                              dangerouslySetInnerHTML={{ __html: studioCode.svg }}
+                              suppressHydrationWarning
                             />
-                            {studioCode.css && <style>{studioCode.css}</style>}
+                            <style>{`
+                              .svg-preview svg {
+                                max-width: 440px;
+                                max-height: 440px;
+                                width: 100%;
+                                height: auto;
+                                display: block;
+                                overflow: visible;
+                              }
+                              /* Bright preview so SVG is visible on dark grid */
+                              .svg-preview svg * {
+                                filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.25));
+                              }
+                              .svg-preview svg *:not([stroke]) {
+                                stroke: #22d3ee;
+                                stroke-width: 2;
+                              }
+                              .svg-preview svg *[stroke='none'] {
+                                stroke: #22d3ee;
+                                stroke-width: 2;
+                              }
+                              .svg-preview svg *:not([fill]) {
+                                fill: transparent;
+                              }
+                              /* Allow Groq CSS to override if provided */
+                              ${studioCode.css || ''}
+                            `}</style>
                           </div>
                         ) : studioTab === 'css' && studioCode?.css ? (
-                          <>
+                          <div className="w-full h-full flex items-center justify-center">
                             <div 
                               className="animated-preview"
                               dangerouslySetInnerHTML={{ __html: studioCode.html || '<button class="animated-element">Animated Element</button>' }}
                             />
                             <style>{studioCode.css}</style>
-                          </>
+                          </div>
                         ) : (
                           <div className="text-center text-gray-500">
                             <div className="flex justify-center mb-4">

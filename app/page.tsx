@@ -452,24 +452,24 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen text-white overflow-x-hidden bg-zinc-900">
+    <main className="min-h-screen overflow-x-hidden text-white bg-zinc-900">
       {/* Fullscreen AI Workspace Portal */}
       {isWorkspaceFullscreen && (
-        <div className="fixed inset-0 z-9999 bg-zinc-950 flex flex-col">
+        <div className="fixed inset-0 flex flex-col z-9999 bg-zinc-950">
           {/* Toolbar Header */}
-          <div className="flex items-center justify-between px-6 py-4 bg-zinc-800 border-b border-white/5 shrink-0">
+          <div className="flex items-center justify-between px-6 py-4 border-b bg-zinc-800 border-white/5 shrink-0">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.5)]" />
                 <div className="w-3 h-3 rounded-full bg-yellow-500 shadow-[0_0_6px_rgba(234,179,8,0.5)]" />
                 <div className="w-3 h-3 rounded-full bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.5)]" />
               </div>
-              <div className="h-6 w-px bg-white/10" />
+              <div className="w-px h-6 bg-white/10" />
               <span className="text-sm font-semibold text-gray-300">AI Workspace - Fullscreen</span>
             </div>
             
             <div className="flex items-center gap-4">
-              <div className="flex gap-1 bg-zinc-800/50 backdrop-blur-sm rounded-lg p-1 border border-white/5">
+              <div className="flex gap-1 p-1 border rounded-lg bg-zinc-800/50 backdrop-blur-sm border-white/5">
                 {(['generate', 'sketch', 'upload'] as const).map((mode) => (
                   <button
                     key={mode}
@@ -489,7 +489,7 @@ export default function Home() {
               </div>
               <button
                 onClick={() => setIsWorkspaceFullscreen(false)}
-                className="p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white"
+                className="p-2 text-gray-400 transition-colors rounded-lg hover:bg-white/10 hover:text-white"
                 title="Exit Fullscreen (Esc)"
               >
                 <Minimize2 className="w-5 h-5" />
@@ -500,11 +500,11 @@ export default function Home() {
           {/* Main Content Area */}
           <div className="flex flex-1 min-h-0">
             {/* Sidebar */}
-            <div className="w-80 bg-zinc-900/80 border-r border-white/5 p-6 space-y-6 overflow-y-auto shrink-0">
+            <div className="p-6 space-y-6 overflow-y-auto border-r w-80 bg-zinc-900/80 border-white/5 shrink-0">
               {activeMode === 'generate' && (
                 <>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Prompt</label>
+                    <label className="block mb-3 text-xs font-semibold tracking-wide text-gray-400 uppercase">Prompt</label>
                     <PromptInput
                       value={prompt}
                       onChange={setPrompt}
@@ -522,11 +522,11 @@ export default function Home() {
               {activeMode === 'sketch' && (
                 <>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Brush Size: {brushSize}px</label>
+                    <label className="block mb-3 text-xs font-semibold tracking-wide text-gray-400 uppercase">Brush Size: {brushSize}px</label>
                     <input type="range" min="1" max="50" value={brushSize} onChange={(e) => setBrushSize(Number(e.target.value))} className="w-full accent-purple-500" />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Render Prompt</label>
+                    <label className="block mb-3 text-xs font-semibold tracking-wide text-gray-400 uppercase">Render Prompt</label>
                     <PromptInput
                       value={sketchPrompt}
                       onChange={setSketchPrompt}
@@ -544,7 +544,7 @@ export default function Home() {
               {activeMode === 'upload' && (
                 <>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Transform Prompt</label>
+                    <label className="block mb-3 text-xs font-semibold tracking-wide text-gray-400 uppercase">Transform Prompt</label>
                     <PromptInput
                       value={transformPrompt}
                       onChange={setTransformPrompt}
@@ -562,28 +562,28 @@ export default function Home() {
             </div>
 
             {/* Main Canvas */}
-            <div className="flex-1 p-6 bg-zinc-950/50 overflow-auto">
+            <div className="flex-1 p-6 overflow-auto bg-zinc-950/50">
               {activeMode === 'generate' && (
-                <div className="h-full flex items-center justify-center bg-zinc-900/50 rounded-2xl border border-white/5 relative">
+                <div className="relative flex items-center justify-center h-full border bg-zinc-900/50 rounded-2xl border-white/5">
                   {loading ? (
                     <div className="text-center"><Loader /><p className="mt-4 text-gray-400">Generating...</p></div>
                   ) : generatedImage ? (
-                    <img src={generatedImage} alt="Generated" className="max-w-full max-h-full object-contain rounded-xl" onClick={() => setIsImageZoomed(true)} />
+                    <img src={generatedImage} alt="Generated" className="object-contain max-w-full max-h-full rounded-xl" onClick={() => setIsImageZoomed(true)} />
                   ) : (
                     <div className="text-center text-gray-500"><Sparkles className="w-16 h-16 mx-auto mb-4 opacity-50" /><p>Enter a prompt and click Generate</p></div>
                   )}
                 </div>
               )}
               {activeMode === 'sketch' && (
-                <div className="h-full rounded-2xl border border-white/10 relative overflow-hidden">
+                <div className="relative h-full overflow-hidden border rounded-2xl border-white/10">
                   <SketchCanvas ref={sketchCanvasRef} brushSize={brushSize} opacity={opacity} onBrushSizeChange={setBrushSize} onOpacityChange={setOpacity} onHasDrawingChange={setHasSketchDrawing} />
-                  {loading && <div className="absolute inset-0 bg-zinc-900/90 flex items-center justify-center z-50"><Loader /><p className="mt-4 text-gray-300">Rendering...</p></div>}
+                  {loading && <div className="absolute inset-0 z-50 flex items-center justify-center bg-zinc-900/90"><Loader /><p className="mt-4 text-gray-300">Rendering...</p></div>}
                 </div>
               )}
               {activeMode === 'upload' && (
-                <div className="h-full flex items-center justify-center bg-zinc-900/50 rounded-2xl border-2 border-dashed border-white/10">
+                <div className="flex items-center justify-center h-full border-2 border-dashed bg-zinc-900/50 rounded-2xl border-white/10">
                   <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) { setPreview(URL.createObjectURL(file)); }}} />
-                  <div onClick={() => fileInputRef.current?.click()} className="cursor-pointer text-center">
+                  <div onClick={() => fileInputRef.current?.click()} className="text-center cursor-pointer">
                     {preview ? <img src={preview} alt="Preview" className="max-w-full max-h-[60vh] object-contain rounded-xl" /> : <><Upload className="w-16 h-16 mx-auto mb-4 text-gray-500" /><p className="text-gray-400">Click to upload an image</p></>}
                   </div>
                 </div>
@@ -591,28 +591,28 @@ export default function Home() {
             </div>
 
             {/* Right Sidebar */}
-            <div className="w-64 bg-zinc-900/80 border-l border-white/5 p-4 space-y-4 overflow-y-auto shrink-0">
+            <div className="w-64 p-4 space-y-4 overflow-y-auto border-l bg-zinc-900/80 border-white/5 shrink-0">
               <h3 className="text-xs font-semibold text-gray-400 uppercase">Result Preview</h3>
               {(activeMode === 'generate' && generatedImage) || (activeMode === 'sketch' && renderedSketchImage) || (activeMode === 'upload' && transformedImage) ? (
-                <div className="group relative rounded-lg overflow-hidden border border-white/10 hover:border-white/30 transition-all cursor-pointer bg-black/30" onClick={() => setIsImageZoomed(true)}>
+                <div className="relative overflow-hidden transition-all border rounded-lg cursor-pointer group border-white/10 hover:border-white/30 bg-black/30" onClick={() => setIsImageZoomed(true)}>
                   <img 
                     src={activeMode === 'generate' ? generatedImage! : activeMode === 'sketch' ? renderedSketchImage! : transformedImage!} 
                     alt="Result preview" 
-                    className="w-full aspect-square object-cover group-hover:opacity-75 transition-opacity"
+                    className="object-cover w-full transition-opacity aspect-square group-hover:opacity-75"
                   />
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span className="text-white text-sm font-medium">View Full Size</span>
+                  <div className="absolute inset-0 flex items-center justify-center transition-opacity opacity-0 bg-black/40 group-hover:opacity-100">
+                    <span className="text-sm font-medium text-white">View Full Size</span>
                   </div>
                 </div>
               ) : (
-                <div className="text-xs text-gray-500 text-center py-12 border border-dashed border-white/10 rounded-lg">No result yet</div>
+                <div className="py-12 text-xs text-center text-gray-500 border border-dashed rounded-lg border-white/10">No result yet</div>
               )}
             </div>
           </div>
 
           {/* Status Bar */}
-          <div className="flex items-center justify-between px-6 py-2 bg-zinc-900/80 border-t border-white/5 text-xs text-gray-500 shrink-0">
-            <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" /><span>Ready</span></div>
+          <div className="flex items-center justify-between px-6 py-2 text-xs text-gray-500 border-t bg-zinc-900/80 border-white/5 shrink-0">
+            <div className="flex items-center gap-2"><div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" /><span>Ready</span></div>
             <span>Press Esc to exit fullscreen</span>
           </div>
         </div>
@@ -620,16 +620,16 @@ export default function Home() {
 
       {/* Fullscreen Animation Studio Portal */}
       {isStudioFullscreen && (
-        <div className="fixed inset-0 z-9999 bg-zinc-950 flex flex-col">
+        <div className="fixed inset-0 flex flex-col z-9999 bg-zinc-950">
           {/* Toolbar */}
-          <div className="bg-zinc-900 border-b border-white/5 px-4 py-2 flex items-center justify-between shrink-0">
+          <div className="flex items-center justify-between px-4 py-2 border-b bg-zinc-900 border-white/5 shrink-0">
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-red-500/80" />
                 <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
                 <div className="w-3 h-3 rounded-full bg-green-500/80" />
               </div>
-              <div className="flex items-center gap-1 bg-zinc-800/50 rounded-lg p-1">
+              <div className="flex items-center gap-1 p-1 rounded-lg bg-zinc-800/50">
                 {(['css', 'svg', 'gif', 'video'] as const).map((tab) => (
                   <button
                     key={tab}
@@ -645,7 +645,7 @@ export default function Home() {
                 ))}
               </div>
             </div>
-            <button onClick={() => setIsStudioFullscreen(false)} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white" title="Exit Fullscreen">
+            <button onClick={() => setIsStudioFullscreen(false)} className="p-2 text-gray-400 transition-colors rounded-lg hover:bg-white/10 hover:text-white" title="Exit Fullscreen">
               <Minimize2 className="w-5 h-5" />
             </button>
           </div>
@@ -653,9 +653,9 @@ export default function Home() {
           {/* Main Content */}
           <div className="flex flex-1 min-h-0">
             {/* Left Panel */}
-            <div className="w-80 bg-zinc-900/80 border-r border-white/5 p-4 flex flex-col overflow-y-auto shrink-0">
+            <div className="flex flex-col p-4 overflow-y-auto border-r w-80 bg-zinc-900/80 border-white/5 shrink-0">
               <div className="mb-4">
-                <label className="text-xs font-medium text-gray-400 mb-2 block">Describe your animation</label>
+                <label className="block mb-2 text-xs font-medium text-gray-400">Describe your animation</label>
                 <PromptInput
                   value={studioPrompt}
                   onChange={setStudioPrompt}
@@ -668,24 +668,28 @@ export default function Home() {
                 />
               </div>
               <div className="mb-4">
-                <label className="text-xs font-medium text-gray-400 mb-2 block">Duration: {studioDuration}s</label>
+                <label className="block mb-2 text-xs font-medium text-gray-400">Duration: {studioDuration}s</label>
                 <input type="range" min="0.5" max="5" step="0.5" value={studioDuration} onChange={(e) => setStudioDuration(e.target.value)} className="w-full accent-cyan-500" />
               </div>
               <GenerateButton text="Generate" loadingText="Generating" onClick={generateAnimation} disabled={!studioPrompt.trim() || studioLoading} loading={studioLoading} />
             </div>
 
             {/* Center Preview */}
-            <div className="flex-1 flex items-center justify-center p-8 bg-zinc-950/50" style={getPreviewBgStyle()}>
+            <div className="flex items-center justify-center flex-1 p-8 bg-zinc-950/50" style={getPreviewBgStyle()}>
               {studioLoading && <div className="text-center"><Loader2 /><p className="mt-4 text-gray-400">Generating...</p></div>}
-              {studioError && <div className="text-center text-red-400"><p>⚠️ {studioError}</p><button onClick={generateAnimation} className="mt-4 px-4 py-2 bg-red-600/20 text-red-400 rounded">Try Again</button></div>}
-              {!studioLoading && !studioError && studioCode?.svg && studioTab === 'svg' && <div dangerouslySetInnerHTML={{ __html: studioCode.svg }} style={{ maxWidth: '300px' }} />}
+              {studioError && <div className="text-center text-red-400"><p>⚠️ {studioError}</p><button onClick={generateAnimation} className="px-4 py-2 mt-4 text-red-400 rounded bg-red-600/20">Try Again</button></div>}
+              {!studioLoading && !studioError && studioCode?.svg && studioTab === 'svg' && (
+                <div className="flex items-center justify-center" style={{ minWidth: '300px', minHeight: '300px' }}>
+                  <div dangerouslySetInnerHTML={{ __html: studioCode.svg }} style={{ width: '100%', maxWidth: '400px', maxHeight: '400px' }} />
+                </div>
+              )}
               {!studioLoading && !studioError && studioCode?.css && studioTab === 'css' && <><div dangerouslySetInnerHTML={{ __html: studioCode.html || '<button class="animated-element">Animated</button>' }} /><style>{studioCode.css}</style></>}
-              {!studioLoading && !studioError && studioMediaUrl && (studioTab === 'gif' || studioTab === 'video') && (studioTab === 'gif' ? <img src={studioMediaUrl} alt="GIF" className="max-h-80 rounded-lg" /> : <video src={studioMediaUrl} controls autoPlay loop className="max-h-80 rounded-lg" />)}
+              {!studioLoading && !studioError && studioMediaUrl && (studioTab === 'gif' || studioTab === 'video') && (studioTab === 'gif' ? <img src={studioMediaUrl} alt="GIF" className="rounded-lg max-h-80" /> : <video src={studioMediaUrl} controls autoPlay loop className="rounded-lg max-h-80" />)}
               {!studioLoading && !studioError && !studioCode && !studioMediaUrl && <div className="text-center text-gray-500"><Zap className="w-12 h-12 mx-auto mb-4 opacity-50" /><p>Enter a prompt and click Generate</p></div>}
             </div>
 
             {/* Right Code Panel */}
-            <div className="w-96 bg-zinc-900/80 border-l border-white/5 flex flex-col overflow-hidden shrink-0">
+            <div className="flex flex-col overflow-hidden border-l w-96 bg-zinc-900/80 border-white/5 shrink-0">
               <div className="flex border-b border-white/5">
                 {(studioTab === 'svg' ? ['svg', 'css', 'react'] : ['css', 'html', 'react']).map((tab) => (
                   <button key={tab} onClick={() => setStudioCodeTab(tab as any)} className={`flex-1 px-4 py-2 text-xs font-medium ${studioCodeTab === tab ? 'bg-zinc-800 text-white' : 'text-gray-400 hover:text-white'}`}>
@@ -693,15 +697,15 @@ export default function Home() {
                   </button>
                 ))}
               </div>
-              <pre className="flex-1 p-4 text-xs text-gray-300 overflow-auto font-mono">
+              <pre className="flex-1 p-4 overflow-auto font-mono text-xs text-gray-300">
                 <code>{studioCode ? (studioCodeTab === 'svg' ? studioCode.svg : studioCodeTab === 'css' ? studioCode.css : studioCodeTab === 'html' ? studioCode.html : studioCode.react) || '// No code' : '// Generate to see code'}</code>
               </pre>
-              <button onClick={copyStudioCode} disabled={!studioCode} className="m-4 py-2 text-xs bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-900 disabled:text-gray-600 text-gray-300 rounded-lg">Copy Code</button>
+              <button onClick={copyStudioCode} disabled={!studioCode} className="py-2 m-4 text-xs text-gray-300 rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-900 disabled:text-gray-600">Copy Code</button>
             </div>
           </div>
 
           {/* Status Bar */}
-          <div className="flex items-center justify-between px-4 py-2 bg-zinc-900/80 border-t border-white/5 text-xs text-gray-500 shrink-0">
+          <div className="flex items-center justify-between px-4 py-2 text-xs text-gray-500 border-t bg-zinc-900/80 border-white/5 shrink-0">
             <span>{studioTab.toUpperCase()} Animation</span>
             <span>Press Esc to exit fullscreen</span>
           </div>
@@ -719,15 +723,15 @@ export default function Home() {
       
       {/* ========== FIXED NAVBAR - Outside all sections ========== */}
       <nav className="fixed top-6 left-1/2 -translate-x-1/2 z-100 w-[90%] max-w-4xl">
-        <div className="relative backdrop-blur-2xl bg-linear-to-r from-white/8 to-white/4 border border-white/8 rounded-full px-8 py-3 flex items-center justify-between shadow-lg shadow-black/20">
+        <div className="relative flex items-center justify-between px-8 py-3 border rounded-full shadow-lg backdrop-blur-2xl bg-linear-to-r from-white/8 to-white/4 border-white/8 shadow-black/20">
           {/* Subtle gradient overlay */}
-          <div className="absolute inset-0 rounded-full bg-linear-to-r from-purple-500/5 via-transparent to-pink-500/5 pointer-events-none" />
+          <div className="absolute inset-0 rounded-full pointer-events-none bg-linear-to-r from-purple-500/5 via-transparent to-pink-500/5" />
           
           {/* Logo - Theme-aware */}
           <ThemedLogo />
           
           {/* Center Navigation Links */}
-          <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-6">
+          <div className="absolute flex items-center gap-6 -translate-x-1/2 left-1/2">
             <button
               onClick={() => router.push('/workspace')}
               className={`text-sm font-medium transition-all duration-300 ${navColorThemes[buttonTheme].text} ${navColorThemes[buttonTheme].hover} ${navColorThemes[buttonTheme].glow}`}
@@ -777,7 +781,7 @@ export default function Home() {
         {/* No fade - let it blend naturally with LightRays */}
         
         {/* Lottie Animation - Right Side */}
-        <div className="absolute inset-0 z-2 pointer-events-none overflow-hidden">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none z-2">
           {/* Right side - Graphic Design Lottie */}
           <div className="absolute right-[-12%] top-[6%] w-[600px] md:w-[850px] lg:w-[1100px] opacity-95">
             <DotLottieReact
@@ -791,7 +795,7 @@ export default function Home() {
         {/* Content Container */}
         <div className="relative z-10">
           {/* Top Section - Hero Text Left Aligned */}
-          <div className="px-6 md:px-12 lg:px-20 pt-32 md:pt-30 pb-8 md:pb-12">
+          <div className="px-6 pt-32 pb-8 md:px-12 lg:px-20 md:pt-30 md:pb-12">
             <div className="max-w-xl text-left">
               {/* Main Heading with TypeText effect on full heading */}
               <ScrollReveal variant="fadeUp" delay={0.1} duration={1}>
@@ -821,7 +825,7 @@ export default function Home() {
               
               {/* Subtext with ShinyText */}
               <ScrollReveal variant="fadeUp" delay={0.3} duration={0.8}>
-              <div className="text-base sm:text-lg md:text-xl mb-6 font-medium tracking-wide">
+              <div className="mb-6 text-base font-medium tracking-wide sm:text-lg md:text-xl">
                 <ShinyText 
                   text="Generate, sketch, or transform with the power of AI — all from one seamless workspace."
                   speed={4}
@@ -831,14 +835,14 @@ export default function Home() {
               
               {/* Additional descriptive text */}
               <ScrollReveal variant="fadeUp" delay={0.5} duration={0.8}>
-              <p className="text-sm sm:text-base text-gray-400 mb-4 leading-relaxed font-normal tracking-wide">
+              <p className="mb-4 text-sm font-normal leading-relaxed tracking-wide text-gray-400 sm:text-base">
                 Whether you're a designer, developer, or creator — SketchoFlow brings your imagination to life with cutting-edge AI tools.
               </p>
               </ScrollReveal>
 
               
               {/* JoinToday Button */}
-              <div className="relative mt-15 z-30 animate-fade-in-up" style={{ animationDelay: '0.8s', animationFillMode: 'both' }}>
+              <div className="relative z-30 mt-15 animate-fade-in-up" style={{ animationDelay: '0.8s', animationFillMode: 'both' }}>
                 <JoinToday onJoinNowClick={() => setIsSignupPopupOpen(true)} />
               </div>
 
@@ -870,14 +874,14 @@ export default function Home() {
           </div>
 
           {/* Image with Container Scroll Animation */}
-          <div className="mt-8 md:-mt-34 relative z-10">
+          <div className="relative z-10 mt-8 md:-mt-34">
             <ContainerScroll
               titleComponent={<></>}
             >
               <img 
                 src="/SketchoFlow Landing.png" 
                 alt="SketchoFlow AI Workspace" 
-                className="w-full h-auto object-cover object-top rounded-2xl"
+                className="object-cover object-top w-full h-auto rounded-2xl"
               />
             </ContainerScroll>
           </div>
@@ -901,12 +905,12 @@ export default function Home() {
             </div>
             
             {/* Content above LightRays */}
-            <div className="relative z-10 max-w-7xl mx-auto px-6 pt-8 pb-32">
-              <div className="text-center mb-16 space-y-6">
+            <div className="relative z-10 px-6 pt-8 pb-32 mx-auto max-w-7xl">
+              <div className="mb-16 space-y-6 text-center">
                 <SplitText
                   text="Your Professional AI Workspace"
                   tag="h2"
-                  className="text-5xl md:text-6xl font-extrabold"
+                  className="text-5xl font-extrabold md:text-6xl"
                   splitType="chars"
                   delay={40}
                   duration={0.6}
@@ -916,29 +920,29 @@ export default function Home() {
                   textAlign="center"
                 />
                 <ScrollReveal variant="fadeUp" delay={0.5} duration={0.8}>
-                  <p className="text-xl text-gray-400 max-w-3xl mx-auto font-normal tracking-wide">
+                  <p className="max-w-3xl mx-auto text-xl font-normal tracking-wide text-gray-400">
                     Generate, sketch, or transform — all in one seamless interface designed for creators.
                   </p>
                 </ScrollReveal>
 
                 {/* Professional Workspace Tool Card */}
                 <ScrollReveal variant="fadeUp" delay={0.6} duration={0.9}>
-                  <div className="relative bg-zinc-900/80 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
+                  <div className="relative overflow-hidden border shadow-2xl bg-zinc-900/80 backdrop-blur-xl rounded-2xl border-white/10">
                     {/* Toolbar Header */}
-                    <div className="flex items-center justify-between px-6 py-4 bg-zinc-800 border-b border-white/5">
+                    <div className="flex items-center justify-between px-6 py-4 border-b bg-zinc-800 border-white/5">
                       <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
                           <div className="w-3 h-3 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.5)]" />
                           <div className="w-3 h-3 rounded-full bg-yellow-500 shadow-[0_0_6px_rgba(234,179,8,0.5)]" />
                           <div className="w-3 h-3 rounded-full bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.5)]" />
                         </div>
-                        <div className="h-6 w-px bg-white/10" />
+                        <div className="w-px h-6 bg-white/10" />
                         <span className="text-sm font-semibold text-gray-300">AI Workspace</span>
                       </div>
                       
                       <div className="flex items-center gap-4">
                         {/* Tab Navigation */}
-                        <div className="flex gap-1 bg-zinc-800/50 backdrop-blur-sm rounded-lg p-1 border border-white/5">
+                        <div className="flex gap-1 p-1 border rounded-lg bg-zinc-800/50 backdrop-blur-sm border-white/5">
                           {(['generate', 'sketch', 'upload'] as const).map((mode) => (
                             <button
                               key={mode}
@@ -960,7 +964,7 @@ export default function Home() {
                         {/* Fullscreen Toggle Button */}
                         <button
                           onClick={() => setIsWorkspaceFullscreen(true)}
-                          className="p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white"
+                          className="p-2 text-gray-400 transition-colors rounded-lg hover:bg-white/10 hover:text-white"
                           title="Fullscreen"
                         >
                           <Maximize2 className="w-4 h-4" />
@@ -971,11 +975,11 @@ export default function Home() {
                     {/* Main Content Area */}
                     <div className="flex h-[600px]">
                       {/* Sidebar - Tool Properties */}
-                      <div className="w-80 bg-zinc-900/50 backdrop-blur-sm border-r border-white/5 p-6 space-y-6 overflow-y-auto">
+                      <div className="p-6 space-y-6 overflow-y-auto border-r w-80 bg-zinc-900/50 backdrop-blur-sm border-white/5">
                         {activeMode === 'generate' && (
                           <>
                             <div>
-                              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Prompt</label>
+                              <label className="block mb-3 text-xs font-semibold tracking-wide text-gray-400 uppercase">Prompt</label>
                               <PromptInput
                                 value={prompt}
                                 onChange={setPrompt}
@@ -989,17 +993,17 @@ export default function Home() {
                             </div>
                             
                             <div>
-                              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Style</label>
+                              <label className="block mb-3 text-xs font-semibold tracking-wide text-gray-400 uppercase">Style</label>
                               <div className="relative">
-                                <select className="w-full px-4 py-3 pr-10 bg-zinc-800 border border-purple-500/30 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all appearance-none cursor-pointer hover:border-purple-500/50">
-                                  <option className="bg-zinc-800 text-white py-2">Photorealistic</option>
-                                  <option className="bg-zinc-800 text-white py-2">Anime</option>
-                                  <option className="bg-zinc-800 text-white py-2">Oil Painting</option>
-                                  <option className="bg-zinc-800 text-white py-2">Digital Art</option>
-                                  <option className="bg-zinc-800 text-white py-2">3D Render</option>
-                                  <option className="bg-zinc-800 text-white py-2">Watercolor</option>
+                                <select className="w-full px-4 py-3 pr-10 text-sm text-white transition-all border appearance-none cursor-pointer bg-zinc-800 border-purple-500/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/50 hover:border-purple-500/50">
+                                  <option className="py-2 text-white bg-zinc-800">Photorealistic</option>
+                                  <option className="py-2 text-white bg-zinc-800">Anime</option>
+                                  <option className="py-2 text-white bg-zinc-800">Oil Painting</option>
+                                  <option className="py-2 text-white bg-zinc-800">Digital Art</option>
+                                  <option className="py-2 text-white bg-zinc-800">3D Render</option>
+                                  <option className="py-2 text-white bg-zinc-800">Watercolor</option>
                                 </select>
-                                <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+                                <div className="absolute inset-y-0 flex items-center pointer-events-none right-3">
                                   <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                   </svg>
@@ -1008,12 +1012,12 @@ export default function Home() {
                             </div>
 
                             <div>
-                              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Aspect Ratio</label>
+                              <label className="block mb-3 text-xs font-semibold tracking-wide text-gray-400 uppercase">Aspect Ratio</label>
                               <div className="grid grid-cols-2 gap-2">
                                 {['16:9', '1:1', '9:16', '4:3'].map((ratio) => (
                                   <button
                                     key={ratio}
-                                    className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-gray-300 hover:border-blue-500 hover:text-white transition-all"
+                                    className="px-3 py-2 text-sm text-gray-300 transition-all border rounded-lg bg-zinc-800 border-zinc-700 hover:border-blue-500 hover:text-white"
                                   >
                                     {ratio}
                                   </button>
@@ -1033,21 +1037,21 @@ export default function Home() {
                         {activeMode === 'sketch' && (
                           <>
                             <div>
-                              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Canvas Settings</label>
+                              <label className="block mb-3 text-xs font-semibold tracking-wide text-gray-400 uppercase">Canvas Settings</label>
                               <div className="space-y-3">
                                 <div>
-                                  <label className="block text-xs text-gray-500 mb-2">Brush Size: {brushSize}px</label>
+                                  <label className="block mb-2 text-xs text-gray-500">Brush Size: {brushSize}px</label>
                                   <input type="range" min="1" max="50" value={brushSize} onChange={(e) => setBrushSize(Number(e.target.value))} className="w-full accent-purple-600" />
                                 </div>
                                 <div>
-                                  <label className="block text-xs text-gray-500 mb-2">Opacity: {opacity}%</label>
+                                  <label className="block mb-2 text-xs text-gray-500">Opacity: {opacity}%</label>
                                   <input type="range" min="10" max="100" value={opacity} onChange={(e) => setOpacity(Number(e.target.value))} className="w-full accent-purple-600" />
                                 </div>
                               </div>
                             </div>
 
                             <div>
-                              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Enhancement Prompt</label>
+                              <label className="block mb-3 text-xs font-semibold tracking-wide text-gray-400 uppercase">Enhancement Prompt</label>
                               <PromptInput
                                 value={sketchPrompt}
                                 onChange={setSketchPrompt}
@@ -1067,7 +1071,7 @@ export default function Home() {
                         {activeMode === 'upload' && (
                           <>
                             <div>
-                              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Transformation</label>
+                              <label className="block mb-3 text-xs font-semibold tracking-wide text-gray-400 uppercase">Transformation</label>
                               <PromptInput
                                 value={transformPrompt}
                                 onChange={setTransformPrompt}
@@ -1081,9 +1085,9 @@ export default function Home() {
                             </div>
 
                             <div>
-                              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Strength</label>
+                              <label className="block mb-3 text-xs font-semibold tracking-wide text-gray-400 uppercase">Strength</label>
                               <input type="range" min="0" max="100" defaultValue="75" className="w-full accent-pink-600" />
-                              <div className="flex justify-between text-xs text-gray-500 mt-1">
+                              <div className="flex justify-between mt-1 text-xs text-gray-500">
                                 <span>Subtle</span>
                                 <span>Strong</span>
                               </div>
@@ -1097,60 +1101,60 @@ export default function Home() {
                       {/* Main Canvas Area */}
                       <div className="flex-1 p-8 bg-zinc-950/30 min-h-[600px]">
                         {activeMode === 'generate' && (
-                          <div className="h-full flex items-center justify-center bg-zinc-900/50 backdrop-blur-sm rounded-2xl border border-white/5 relative overflow-hidden">
+                          <div className="relative flex items-center justify-center h-full overflow-hidden border bg-zinc-900/50 backdrop-blur-sm rounded-2xl border-white/5">
                             <div className="absolute inset-0 opacity-5" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
                             
                             {loading ? (
-                              <div className="relative text-center text-gray-400 w-full h-full flex flex-col items-center justify-center">
+                              <div className="relative flex flex-col items-center justify-center w-full h-full text-center text-gray-400">
                                 <div className="relative w-64 h-40"><Loader /></div>
-                                <p className="text-lg font-medium mt-8">Generating your image...</p>
-                                <p className="text-sm mt-2 text-gray-500">This may take a few moments</p>
+                                <p className="mt-8 text-lg font-medium">Generating your image...</p>
+                                <p className="mt-2 text-sm text-gray-500">This may take a few moments</p>
                               </div>
                             ) : generatedImage ? (
-                              <div className="relative w-full h-full flex items-center justify-center p-4">
+                              <div className="relative flex items-center justify-center w-full h-full p-4">
                                 <img src={generatedImage} alt="Generated image" className="max-w-full max-h-full object-contain rounded-xl shadow-2xl cursor-pointer hover:scale-[1.02] transition-transform" onClick={() => setIsImageZoomed(true)} />
                               </div>
                             ) : (
                               <div className="relative text-center text-gray-500">
                                 <Sparkles className="w-16 h-16 mx-auto mb-4 opacity-50" />
                                 <p className="text-lg font-medium">Preview will appear here</p>
-                                <p className="text-sm mt-2">Enter a prompt and click Generate</p>
+                                <p className="mt-2 text-sm">Enter a prompt and click Generate</p>
                               </div>
                             )}
                           </div>
                         )}
 
                         {activeMode === 'sketch' && (
-                          <div className="h-full rounded-2xl border border-white/10 relative overflow-hidden shadow-inner">
+                          <div className="relative h-full overflow-hidden border shadow-inner rounded-2xl border-white/10">
                             <SketchCanvas ref={sketchCanvasRef} brushSize={brushSize} opacity={opacity} onBrushSizeChange={setBrushSize} onOpacityChange={setOpacity} onHasDrawingChange={setHasSketchDrawing} />
                             {loading && (
-                              <div className="absolute inset-0 bg-zinc-900/90 backdrop-blur-sm flex flex-col items-center justify-center z-50">
+                              <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-zinc-900/90 backdrop-blur-sm">
                                 <div className="relative w-64 h-40"><Loader /></div>
-                                <p className="text-lg font-medium text-gray-300 mt-8">Rendering your sketch...</p>
-                                <p className="text-sm mt-2 text-gray-500">AI is enhancing your artwork</p>
+                                <p className="mt-8 text-lg font-medium text-gray-300">Rendering your sketch...</p>
+                                <p className="mt-2 text-sm text-gray-500">AI is enhancing your artwork</p>
                               </div>
                             )}
                           </div>
                         )}
 
                         {activeMode === 'upload' && (
-                          <div className="h-full flex flex-col bg-zinc-900/50 backdrop-blur-sm rounded-2xl border-2 border-dashed border-white/10 relative overflow-hidden">
-                            <div onClick={() => fileInputRef.current?.click()} className="flex-1 flex items-center justify-center cursor-pointer hover:border-pink-500/50 hover:bg-pink-500/5 transition-all group">
+                          <div className="relative flex flex-col h-full overflow-hidden border-2 border-dashed bg-zinc-900/50 backdrop-blur-sm rounded-2xl border-white/10">
+                            <div onClick={() => fileInputRef.current?.click()} className="flex items-center justify-center flex-1 transition-all cursor-pointer hover:border-pink-500/50 hover:bg-pink-500/5 group">
                               {preview ? (
-                                <img src={preview} alt="preview" className="max-w-full max-h-full object-contain rounded-xl" />
+                                <img src={preview} alt="preview" className="object-contain max-w-full max-h-full rounded-xl" />
                               ) : (
-                                <div className="text-center text-gray-500 group-hover:text-pink-400 transition-colors">
+                                <div className="text-center text-gray-500 transition-colors group-hover:text-pink-400">
                                   <Upload className="w-16 h-16 mx-auto mb-4" />
                                   <p className="text-lg font-medium">Drop image here or click to browse</p>
-                                  <p className="text-sm mt-2">PNG, JPG, WebP up to 10MB</p>
+                                  <p className="mt-2 text-sm">PNG, JPG, WebP up to 10MB</p>
                                 </div>
                               )}
                             </div>
                             {loading && (
-                              <div className="absolute inset-0 bg-zinc-900/90 backdrop-blur-sm flex flex-col items-center justify-center z-50">
+                              <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-zinc-900/90 backdrop-blur-sm">
                                 <div className="relative w-64 h-40"><Loader /></div>
-                                <p className="text-lg font-medium text-gray-300 mt-8">Transforming your image...</p>
-                                <p className="text-sm mt-2 text-gray-500">AI is analyzing and enhancing</p>
+                                <p className="mt-8 text-lg font-medium text-gray-300">Transforming your image...</p>
+                                <p className="mt-2 text-sm text-gray-500">AI is analyzing and enhancing</p>
                               </div>
                             )}
                           </div>
@@ -1159,21 +1163,21 @@ export default function Home() {
                       </div>
 
                       {/* Right Sidebar - Result & Export */}
-                      <div className="w-64 bg-zinc-900/50 backdrop-blur-sm border-l border-white/5 p-4 space-y-4 overflow-y-auto">
+                      <div className="w-64 p-4 space-y-4 overflow-y-auto border-l bg-zinc-900/50 backdrop-blur-sm border-white/5">
                         <div>
-                          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
+                          <h3 className="mb-3 text-xs font-semibold tracking-wide text-gray-400 uppercase">
                             {activeMode === 'sketch' ? 'Rendered Result' : activeMode === 'generate' ? 'Generated Image' : 'Transformed Image'}
                           </h3>
                           <div className="space-y-2">
                             {((activeMode === 'generate' && generatedImage) || (activeMode === 'sketch' && renderedSketchImage) || (activeMode === 'upload' && transformedImage)) ? (
-                              <div onClick={() => setIsImageZoomed(true)} className="relative group cursor-pointer rounded-xl overflow-hidden border border-white/10 hover:border-purple-500/50 transition-all bg-black/30">
-                                <img src={activeMode === 'generate' ? generatedImage! : activeMode === 'sketch' ? renderedSketchImage! : transformedImage!} alt={activeMode === 'sketch' ? 'Rendered sketch' : activeMode === 'generate' ? 'Generated image' : 'Transformed image'} className="w-full h-32 object-cover group-hover:opacity-75 transition-opacity" />
-                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                  <span className="text-white text-xs font-medium">View Full Size</span>
+                              <div onClick={() => setIsImageZoomed(true)} className="relative overflow-hidden transition-all border cursor-pointer group rounded-xl border-white/10 hover:border-purple-500/50 bg-black/30">
+                                <img src={activeMode === 'generate' ? generatedImage! : activeMode === 'sketch' ? renderedSketchImage! : transformedImage!} alt={activeMode === 'sketch' ? 'Rendered sketch' : activeMode === 'generate' ? 'Generated image' : 'Transformed image'} className="object-cover w-full h-32 transition-opacity group-hover:opacity-75" />
+                                <div className="absolute inset-0 flex items-center justify-center transition-opacity opacity-0 bg-black/50 group-hover:opacity-100">
+                                  <span className="text-xs font-medium text-white">View Full Size</span>
                                 </div>
                               </div>
                             ) : (
-                              <div className="px-3 py-8 bg-zinc-800/30 rounded-xl border border-dashed border-white/10 text-center">
+                              <div className="px-3 py-8 text-center border border-dashed bg-zinc-800/30 rounded-xl border-white/10">
                                 <p className="text-xs text-gray-500">
                                   {activeMode === 'sketch' ? 'Render a sketch to see the result here' : activeMode === 'generate' ? 'Generate an image to see the result' : 'Transform an image to see the result'}
                                 </p>
@@ -1183,16 +1187,16 @@ export default function Home() {
                         </div>
 
                         <div>
-                          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Export As</h3>
+                          <h3 className="mb-3 text-xs font-semibold tracking-wide text-gray-400 uppercase">Export As</h3>
                           <div className="space-y-1.5">
-                            <button onClick={() => handleExport(() => { if (activeMode === 'sketch' && sketchCanvasRef.current) { const dataUrl = sketchCanvasRef.current.getCanvasDataUrl(); if (dataUrl) { const link = document.createElement('a'); link.download = 'sketch.png'; link.href = dataUrl; link.click(); } } else if (aiResponse) { const link = document.createElement('a'); link.download = 'generated.png'; link.href = aiResponse; link.click(); } })} className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-purple-600/20 hover:text-purple-300 rounded-lg cursor-pointer transition-all flex items-center gap-2">
-                              <span className="w-2 h-2 rounded-full bg-purple-500"></span>PNG
+                            <button onClick={() => handleExport(() => { if (activeMode === 'sketch' && sketchCanvasRef.current) { const dataUrl = sketchCanvasRef.current.getCanvasDataUrl(); if (dataUrl) { const link = document.createElement('a'); link.download = 'sketch.png'; link.href = dataUrl; link.click(); } } else if (aiResponse) { const link = document.createElement('a'); link.download = 'generated.png'; link.href = aiResponse; link.click(); } })} className="flex items-center w-full gap-2 px-3 py-2 text-sm text-left text-gray-300 transition-all rounded-lg cursor-pointer hover:bg-purple-600/20 hover:text-purple-300">
+                              <span className="w-2 h-2 bg-purple-500 rounded-full"></span>PNG
                             </button>
-                            <button onClick={() => handleExport(() => { const canvas = document.querySelector('canvas'); if (canvas) { const dataUrl = canvas.toDataURL('image/jpeg', 0.9); const link = document.createElement('a'); link.download = 'image.jpg'; link.href = dataUrl; link.click(); } })} className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-blue-600/20 hover:text-blue-300 rounded-lg cursor-pointer transition-all flex items-center gap-2">
-                              <span className="w-2 h-2 rounded-full bg-blue-500"></span>JPEG
+                            <button onClick={() => handleExport(() => { const canvas = document.querySelector('canvas'); if (canvas) { const dataUrl = canvas.toDataURL('image/jpeg', 0.9); const link = document.createElement('a'); link.download = 'image.jpg'; link.href = dataUrl; link.click(); } })} className="flex items-center w-full gap-2 px-3 py-2 text-sm text-left text-gray-300 transition-all rounded-lg cursor-pointer hover:bg-blue-600/20 hover:text-blue-300">
+                              <span className="w-2 h-2 bg-blue-500 rounded-full"></span>JPEG
                             </button>
-                            <button onClick={() => handleExport(() => { const canvas = document.querySelector('canvas'); if (canvas) { const dataUrl = canvas.toDataURL('image/webp', 0.9); const link = document.createElement('a'); link.download = 'image.webp'; link.href = dataUrl; link.click(); } })} className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-green-600/20 hover:text-green-300 rounded-lg cursor-pointer transition-all flex items-center gap-2">
-                              <span className="w-2 h-2 rounded-full bg-green-500"></span>WebP
+                            <button onClick={() => handleExport(() => { const canvas = document.querySelector('canvas'); if (canvas) { const dataUrl = canvas.toDataURL('image/webp', 0.9); const link = document.createElement('a'); link.download = 'image.webp'; link.href = dataUrl; link.click(); } })} className="flex items-center w-full gap-2 px-3 py-2 text-sm text-left text-gray-300 transition-all rounded-lg cursor-pointer hover:bg-green-600/20 hover:text-green-300">
+                              <span className="w-2 h-2 bg-green-500 rounded-full"></span>WebP
                             </button>
                           </div>
                         </div>
@@ -1201,11 +1205,11 @@ export default function Home() {
 
                     {/* Auth Gate Blur Overlay for Workspace */}
                     {!user && (
-                      <div className="absolute inset-0 z-40 backdrop-blur-md bg-zinc-900/60 flex flex-col items-center justify-center rounded-2xl">
-                        <div className="text-center space-y-6 px-8">
+                      <div className="absolute inset-0 z-40 flex flex-col items-center justify-center backdrop-blur-md bg-zinc-900/60 rounded-2xl">
+                        <div className="px-8 space-y-6 text-center">
                           <div className="space-y-2">
                             <h3 className="text-2xl font-bold text-white">Unlock AI Workspace</h3>
-                            <p className="text-gray-400 max-w-md">Sign in or create an account to access all AI-powered creative tools</p>
+                            <p className="max-w-md text-gray-400">Sign in or create an account to access all AI-powered creative tools</p>
                           </div>
                           <div className="flex items-center justify-center gap-4">
                             <BlurButton variant="blue" onClick={() => openAuthGate('blue')}>Sign In</BlurButton>
@@ -1218,7 +1222,7 @@ export default function Home() {
                     {/* Status Bar */}
                     <div className="flex items-center justify-between px-6 py-2.5 bg-zinc-900/50 border-t border-white/5 text-xs text-gray-500">
                       <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                         <span>Ready</span>
                       </div>
                       <span>AI Model: Vision</span>
@@ -1242,16 +1246,16 @@ export default function Home() {
         </div>
 
         {/* Gradient overlay for blending with section 2 */}
-        <div className="absolute inset-x-0 top-0 h-64 bg-linear-to-b from-zinc-900 via-zinc-900/80 to-transparent z-1 pointer-events-none" />
+        <div className="absolute inset-x-0 top-0 h-64 pointer-events-none bg-linear-to-b from-zinc-900 via-zinc-900/80 to-transparent z-1" />
 
         {/* Content - z-index lower than navbar (z-50) */}
-        <div className="relative z-20 max-w-7xl mx-auto px-6 pt-48 pb-32">
+        <div className="relative z-20 px-6 pt-48 pb-32 mx-auto max-w-7xl">
           {/* Section Header */}
-          <div className="text-center mb-16 space-y-6">
+          <div className="mb-16 space-y-6 text-center">
             <SplitText
               text="AI-Powered Animation Studio"
               tag="h2"
-              className="text-5xl md:text-6xl font-extrabold text-emerald-400"
+              className="text-5xl font-extrabold md:text-6xl text-emerald-400"
               splitType="chars"
               delay={40}
               duration={0.6}
@@ -1261,49 +1265,49 @@ export default function Home() {
               textAlign="center"
             />
             <ScrollReveal variant="fadeUp" delay={0.5} duration={0.8}>
-              <p className="text-xl text-gray-400 max-w-3xl mx-auto font-normal tracking-wide">
+              <p className="max-w-3xl mx-auto text-xl font-normal tracking-wide text-gray-400">
                 Four powerful tools — from instant CSS animations to stunning AI-generated videos. Everything you need to create motion magic.
               </p>
             </ScrollReveal>
           </div>
 
           {/* Features Grid - 2x2 Quad Layout */}
-          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+          <div className="grid max-w-5xl gap-8 mx-auto md:grid-cols-2">
             
             {/* Feature 1: CSS Animation - Instant & Lightweight */}
             <ScrollReveal variant="fadeUp" delay={0.2} duration={0.9}>
             <ParticleCard
-              className="bg-zinc-800/50 backdrop-blur-sm rounded-3xl p-8 border border-white/10 hover:border-cyan-500/40 transition-all duration-300"
+              className="p-8 transition-all duration-300 border bg-zinc-800/50 backdrop-blur-sm rounded-3xl border-white/10 hover:border-cyan-500/40"
               glowColor="6, 182, 212"
               enableTilt={true}
               clickEffect={true}
             >
               <div className="relative">
                 {/* Lottie Animation */}
-                <div className="w-full aspect-4/3 mb-6 flex items-center justify-center rounded-2xl bg-zinc-900/30 overflow-hidden">
+                <div className="flex items-center justify-center w-full mb-6 overflow-hidden aspect-4/3 rounded-2xl bg-zinc-900/30">
                   <DotLottieReact
                     src="/Data Scanning.lottie"
                     loop
                     autoplay
-                    className="w-full h-full object-contain scale-110"
+                    className="object-contain w-full h-full scale-110"
                   />
                 </div>
                 <div className="flex items-start justify-between mb-4">
                   <h3 className="text-2xl font-bold text-white">Text → CSS Animation</h3>
-                  <span className="px-3 py-1 text-xs font-semibold bg-cyan-500/10 text-cyan-400 rounded-full border border-cyan-500/20">
+                  <span className="px-3 py-1 text-xs font-semibold border rounded-full bg-cyan-500/10 text-cyan-400 border-cyan-500/20">
                     Zero GPU
                   </span>
                 </div>
-                <p className="text-gray-400 mb-4 leading-relaxed">
+                <p className="mb-4 leading-relaxed text-gray-400">
                   Instant, lightweight animations that run 100% client-side. Create bouncing buttons, glowing effects, and smooth transitions.
                 </p>
-                <div className="bg-zinc-900/50 rounded-xl p-4 mb-4 border border-white/5">
-                  <p className="text-xs text-gray-500 mb-2">Example prompt:</p>
-                  <p className="text-sm text-cyan-300 font-mono">&quot;Make a bouncing glowing button animation&quot;</p>
+                <div className="p-4 mb-4 border bg-zinc-900/50 rounded-xl border-white/5">
+                  <p className="mb-2 text-xs text-gray-500">Example prompt:</p>
+                  <p className="font-mono text-sm text-cyan-300">&quot;Make a bouncing glowing button animation&quot;</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {['CSS Code', 'HTML Snippet', 'Live Preview'].map((tag) => (
-                    <span key={tag} className="px-3 py-1 text-xs font-medium bg-cyan-500/10 text-cyan-400 rounded-full">
+                    <span key={tag} className="px-3 py-1 text-xs font-medium rounded-full bg-cyan-500/10 text-cyan-400">
                       {tag}
                     </span>
                   ))}
@@ -1315,37 +1319,37 @@ export default function Home() {
             {/* Feature 2: SVG Animation - Vector-Based */}
             <ScrollReveal variant="fadeUp" delay={0.4} duration={0.9}>
             <ParticleCard
-              className="bg-zinc-800/50 backdrop-blur-sm rounded-3xl p-8 border border-white/10 hover:border-green-500/40 transition-all duration-300"
+              className="p-8 transition-all duration-300 border bg-zinc-800/50 backdrop-blur-sm rounded-3xl border-white/10 hover:border-green-500/40"
               glowColor="34, 197, 94"
               enableTilt={true}
               clickEffect={true}
             >
               <div className="relative">
                 {/* Lottie Animation */}
-                <div className="w-full aspect-4/3 mb-6 flex items-center justify-center rounded-2xl bg-zinc-900/30 overflow-hidden">
+                <div className="flex items-center justify-center w-full mb-6 overflow-hidden aspect-4/3 rounded-2xl bg-zinc-900/30">
                   <DotLottieReact
                     src="/Seo isometric composition with human characters.lottie"
                     loop
                     autoplay
-                    className="w-full h-full object-contain scale-110"
+                    className="object-contain w-full h-full scale-110"
                   />
                 </div>
                 <div className="flex items-start justify-between mb-4">
                   <h3 className="text-2xl font-bold text-white">Text → SVG Animation</h3>
-                  <span className="px-3 py-1 text-xs font-semibold bg-green-500/10 text-green-400 rounded-full border border-green-500/20">
+                  <span className="px-3 py-1 text-xs font-semibold text-green-400 border rounded-full bg-green-500/10 border-green-500/20">
                     Vector Quality
                   </span>
                 </div>
-                <p className="text-gray-400 mb-4 leading-relaxed">
+                <p className="mb-4 leading-relaxed text-gray-400">
                   Generate scalable vector animations with perfect quality at any size. Create rotating shapes, morphing icons, and path animations.
                 </p>
-                <div className="bg-zinc-900/50 rounded-xl p-4 mb-4 border border-white/5">
-                  <p className="text-xs text-gray-500 mb-2">Example prompt:</p>
-                  <p className="text-sm text-green-300 font-mono">&quot;Create a rotating 3D-like cube animation&quot;</p>
+                <div className="p-4 mb-4 border bg-zinc-900/50 rounded-xl border-white/5">
+                  <p className="mb-2 text-xs text-gray-500">Example prompt:</p>
+                  <p className="font-mono text-sm text-green-300">&quot;Create a rotating 3D-like cube animation&quot;</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {['<svg> Code', '<animate>', 'Canvas Preview'].map((tag) => (
-                    <span key={tag} className="px-3 py-1 text-xs font-medium bg-green-500/10 text-green-400 rounded-full">
+                    <span key={tag} className="px-3 py-1 text-xs font-medium text-green-400 rounded-full bg-green-500/10">
                       {tag}
                     </span>
                   ))}
@@ -1357,37 +1361,37 @@ export default function Home() {
             {/* Feature 3: GIF Animation - Easy to Embed */}
             <ScrollReveal variant="fadeUp" delay={0.6} duration={0.9}>
             <ParticleCard
-              className="bg-zinc-800/50 backdrop-blur-sm rounded-3xl p-8 border border-white/10 hover:border-pink-500/40 transition-all duration-300"
+              className="p-8 transition-all duration-300 border bg-zinc-800/50 backdrop-blur-sm rounded-3xl border-white/10 hover:border-pink-500/40"
               glowColor="236, 72, 153"
               enableTilt={true}
               clickEffect={true}
             >
               <div className="relative">
                 {/* Lottie Animation */}
-                <div className="w-full aspect-4/3 mb-6 flex items-center justify-center rounded-2xl bg-zinc-900/30 overflow-hidden">
+                <div className="flex items-center justify-center w-full mb-6 overflow-hidden aspect-4/3 rounded-2xl bg-zinc-900/30">
                   <DotLottieReact
                     src="/New app development on desktop.lottie"
                     loop
                     autoplay
-                    className="w-full h-full object-contain scale-110"
+                    className="object-contain w-full h-full scale-110"
                   />
                 </div>
                 <div className="flex items-start justify-between mb-4">
                   <h3 className="text-2xl font-bold text-white">Text → GIF Animation</h3>
-                  <span className="px-3 py-1 text-xs font-semibold bg-pink-500/10 text-pink-400 rounded-full border border-pink-500/20">
+                  <span className="px-3 py-1 text-xs font-semibold text-pink-400 border rounded-full bg-pink-500/10 border-pink-500/20">
                     Instant Share
                   </span>
                 </div>
-                <p className="text-gray-400 mb-4 leading-relaxed">
+                <p className="mb-4 leading-relaxed text-gray-400">
                   Generate eye-catching GIF animations from text. Perfect for social media, websites, and apps — loop-friendly and easy to embed.
                 </p>
-                <div className="bg-zinc-900/50 rounded-xl p-4 mb-4 border border-white/5">
-                  <p className="text-xs text-gray-500 mb-2">Example prompt:</p>
-                  <p className="text-sm text-pink-300 font-mono">&quot;A glowing neon sign flickering on and off&quot;</p>
+                <div className="p-4 mb-4 border bg-zinc-900/50 rounded-xl border-white/5">
+                  <p className="mb-2 text-xs text-gray-500">Example prompt:</p>
+                  <p className="font-mono text-sm text-pink-300">&quot;A glowing neon sign flickering on and off&quot;</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {['Runway API', 'Pika', 'PixVerse'].map((tag) => (
-                    <span key={tag} className="px-3 py-1 text-xs font-medium bg-pink-500/10 text-pink-400 rounded-full">
+                  {['Runway Gen-2', 'Pika', 'PixVerse'].map((tag) => (
+                    <span key={tag} className="px-3 py-1 text-xs font-medium text-pink-400 rounded-full bg-pink-500/10">
                       {tag}
                     </span>
                   ))}
@@ -1399,37 +1403,37 @@ export default function Home() {
             {/* Feature 4: Video Animation - Premium MP4 */}
             <ScrollReveal variant="fadeUp" delay={0.8} duration={0.9}>
             <ParticleCard
-              className="bg-zinc-800/50 backdrop-blur-sm rounded-3xl p-8 border border-white/10 hover:border-purple-500/40 transition-all duration-300"
+              className="p-8 transition-all duration-300 border bg-zinc-800/50 backdrop-blur-sm rounded-3xl border-white/10 hover:border-purple-500/40"
               glowColor="147, 51, 234"
               enableTilt={true}
               clickEffect={true}
             >
               <div className="relative">
                 {/* Lottie Animation */}
-                <div className="w-full aspect-4/3 mb-6 flex items-center justify-center rounded-2xl bg-zinc-900/30 overflow-hidden">
+                <div className="flex items-center justify-center w-full mb-6 overflow-hidden aspect-4/3 rounded-2xl bg-zinc-900/30">
                   <DotLottieReact
                     src="/Web Development.lottie"
                     loop
                     autoplay
-                    className="w-full h-full object-contain scale-110"
+                    className="object-contain w-full h-full scale-110"
                   />
                 </div>
                 <div className="flex items-start justify-between mb-4">
                   <h3 className="text-2xl font-bold text-white">Text → Video (MP4)</h3>
-                  <span className="px-3 py-1 text-xs font-semibold bg-purple-500/10 text-purple-400 rounded-full border border-purple-500/20">
+                  <span className="px-3 py-1 text-xs font-semibold text-purple-400 border rounded-full bg-purple-500/10 border-purple-500/20">
                     AI Studio
                   </span>
                 </div>
-                <p className="text-gray-400 mb-4 leading-relaxed">
+                <p className="mb-4 leading-relaxed text-gray-400">
                   Create professional video animations with AI. Generate explainer scenes, logo reveals, and cinematic motion graphics.
                 </p>
-                <div className="bg-zinc-900/50 rounded-xl p-4 mb-4 border border-white/5">
-                  <p className="text-xs text-gray-500 mb-2">Example prompt:</p>
-                  <p className="text-sm text-purple-300 font-mono">&quot;Logo reveal with particles and light rays&quot;</p>
+                <div className="p-4 mb-4 border bg-zinc-900/50 rounded-xl border-white/5">
+                  <p className="mb-2 text-xs text-gray-500">Example prompt:</p>
+                  <p className="font-mono text-sm text-purple-300">&quot;Logo reveal with particles and light rays&quot;</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {['Runway Gen-2', 'Pika', 'PixVerse'].map((tag) => (
-                    <span key={tag} className="px-3 py-1 text-xs font-medium bg-purple-500/10 text-purple-400 rounded-full">
+                    <span key={tag} className="px-3 py-1 text-xs font-medium text-purple-400 rounded-full bg-purple-500/10">
                       {tag}
                     </span>
                   ))}
@@ -1441,8 +1445,8 @@ export default function Home() {
           </div>
 
           {/* Bottom CTA */}
-          <div className="text-center mt-16 relative z-40 pb-32" suppressHydrationWarning>
-            <p className="text-gray-500 mb-6">Ready to create stunning animations with AI?</p>
+          <div className="relative z-40 pb-32 mt-16 text-center" suppressHydrationWarning>
+            <p className="mb-6 text-gray-500">Ready to create stunning animations with AI?</p>
             <TryAnimationStudio />
           </div>
         </div>
@@ -1468,13 +1472,13 @@ export default function Home() {
         
         {/* Push content down to position below curve */}
         <div className="relative z-20 pt-[62vh] pb-32">
-          <div className="max-w-7xl mx-auto px-6">
+          <div className="px-6 mx-auto max-w-7xl">
             {/* Section Header */}
-            <div className="text-center mb-16 space-y-6">
+            <div className="mb-16 space-y-6 text-center">
               <SplitText
                 text="Your Animation Workspace"
                 tag="h2"
-                className="text-5xl md:text-6xl font-extrabold text-violet-400"
+                className="text-5xl font-extrabold md:text-6xl text-violet-400"
                 splitType="chars"
                 delay={40}
                 duration={0.6}
@@ -1484,7 +1488,7 @@ export default function Home() {
                 textAlign="center"
               />
               <ScrollReveal variant="fadeUp" delay={0.5} duration={0.8}>
-              <p className="text-xl text-gray-400 max-w-3xl mx-auto font-normal tracking-wide">
+              <p className="max-w-3xl mx-auto text-xl font-normal tracking-wide text-gray-400">
                 Four powerful tools in one unified interface. Create CSS, SVG, GIF, and Video animations with AI.
               </p>
               </ScrollReveal>
@@ -1492,9 +1496,9 @@ export default function Home() {
 
             {/* Animation Studio Workspace */}
             <ScrollReveal variant="zoomIn" delay={0.7} duration={1}>
-            <div className="relative bg-zinc-900/80 backdrop-blur-xl border border-white/10 shadow-2xl overflow-hidden rounded-xl" suppressHydrationWarning>
+            <div className="relative overflow-hidden border shadow-2xl bg-zinc-900/80 backdrop-blur-xl border-white/10 rounded-xl" suppressHydrationWarning>
               {/* Top Toolbar with 4 Tabs */}
-              <div className="bg-zinc-950/90 border-b border-white/5 px-4 py-2 flex items-center justify-between">
+              <div className="flex items-center justify-between px-4 py-2 border-b bg-zinc-950/90 border-white/5">
                 <div className="flex items-center gap-6">
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-red-500/80"></div>
@@ -1502,7 +1506,7 @@ export default function Home() {
                     <div className="w-3 h-3 rounded-full bg-green-500/80"></div>
                   </div>
                   {/* 4 Feature Tabs */}
-                  <div className="flex items-center gap-1 bg-zinc-900/50 rounded-lg p-1">
+                  <div className="flex items-center gap-1 p-1 rounded-lg bg-zinc-900/50">
                     <button 
                       onClick={() => { setStudioTab('css'); setStudioCode(null); setStudioMediaUrl(null); setStudioError(null); }}
                       className={`px-4 py-1.5 text-xs font-medium rounded-md transition-colors ${studioTab === 'css' ? 'bg-cyan-600 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
@@ -1533,7 +1537,7 @@ export default function Home() {
                   {/* Fullscreen Toggle Button */}
                   <button
                     onClick={() => setIsStudioFullscreen(true)}
-                    className="p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white"
+                    className="p-2 text-gray-400 transition-colors rounded-lg hover:bg-white/10 hover:text-white"
                     title="Fullscreen"
                   >
                     <Maximize2 className="w-4 h-4" />
@@ -1609,7 +1613,7 @@ ${cssContent}
                       }
                     })}
                     disabled={!studioCode && !studioMediaUrl}
-                    className="px-3 py-1 text-xs bg-pink-600 hover:bg-pink-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded transition-colors"
+                    className="px-3 py-1 text-xs text-white transition-colors bg-pink-600 rounded hover:bg-pink-700 disabled:bg-gray-600 disabled:cursor-not-allowed"
                   >
                     Export
                   </button>
@@ -1621,7 +1625,7 @@ ${cssContent}
                 {/* Left - Prompt Input Panel */}
                 <div className={`w-80 bg-zinc-950/50 border-r border-white/5 p-4 flex flex-col shrink-0 overflow-y-auto`}>
                   <div className="mb-4">
-                    <label className="text-xs font-medium text-gray-400 mb-2 block">Describe your animation</label>
+                    <label className="block mb-2 text-xs font-medium text-gray-400">Describe your animation</label>
                     <PromptInput
                       value={studioPrompt}
                       onChange={setStudioPrompt}
@@ -1639,7 +1643,7 @@ ${cssContent}
 
                   {/* Quick Prompts */}
                   <div className="mb-4">
-                    <label className="text-xs font-medium text-gray-400 mb-2 block">Quick Prompts</label>
+                    <label className="block mb-2 text-xs font-medium text-gray-400">Quick Prompts</label>
                     <div className="flex flex-wrap gap-2">
                       {(studioTab === 'css' || studioTab === 'svg' 
                         ? ['Bounce', 'Pulse', 'Shake', 'Fade', 'Slide', 'Glow', 'Spin', 'Wave']
@@ -1657,9 +1661,9 @@ ${cssContent}
                   </div>
 
                   {/* Duration & Easing / Aspect Ratio */}
-                  <div className="space-y-4 mb-4">
+                  <div className="mb-4 space-y-4">
                     <div>
-                      <label className="text-xs font-medium text-gray-400 mb-2 block">
+                      <label className="block mb-2 text-xs font-medium text-gray-400">
                         Duration: {studioDuration}{studioTab === 'css' || studioTab === 'svg' ? 's' : ' seconds'}
                       </label>
                       <input 
@@ -1674,11 +1678,11 @@ ${cssContent}
                     </div>
                     {(studioTab === 'css' || studioTab === 'svg') ? (
                       <div>
-                        <label className="text-xs font-medium text-gray-400 mb-2 block">Easing</label>
+                        <label className="block mb-2 text-xs font-medium text-gray-400">Easing</label>
                         <select 
                           value={studioEasing}
                           onChange={(e) => setStudioEasing(e.target.value)}
-                          className="w-full bg-zinc-900 border border-white/10 rounded px-3 py-2 text-sm text-gray-300 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                          className="w-full px-3 py-2 text-sm text-gray-300 border rounded bg-zinc-900 border-white/10 focus:outline-none focus:ring-1 focus:ring-cyan-500"
                         >
                           <option>ease-in-out</option>
                           <option>linear</option>
@@ -1689,11 +1693,11 @@ ${cssContent}
                       </div>
                     ) : (
                       <div>
-                        <label className="text-xs font-medium text-gray-400 mb-2 block">Aspect Ratio</label>
+                        <label className="block mb-2 text-xs font-medium text-gray-400">Aspect Ratio</label>
                         <select 
                           value={studioAspectRatio}
                           onChange={(e) => setStudioAspectRatio(e.target.value)}
-                          className="w-full bg-zinc-900 border border-white/10 rounded px-3 py-2 text-sm text-gray-300 focus:outline-none focus:ring-1 focus:ring-pink-500"
+                          className="w-full px-3 py-2 text-sm text-gray-300 border rounded bg-zinc-900 border-white/10 focus:outline-none focus:ring-1 focus:ring-pink-500"
                         >
                           <option value="16:9">16:9 (Landscape)</option>
                           <option value="9:16">9:16 (Portrait)</option>
@@ -1716,9 +1720,9 @@ ${cssContent}
                 </div>
 
                 {/* Center - Live Preview */}
-                <div className="flex-1 bg-zinc-900/50 relative flex flex-col">
+                <div className="relative flex flex-col flex-1 bg-zinc-900/50">
                   {/* Preview Header */}
-                  <div className="px-4 py-2 border-b border-white/5 flex items-center justify-between">
+                  <div className="flex items-center justify-between px-4 py-2 border-b border-white/5">
                     <span className="text-xs font-medium text-gray-400">Live Preview</span>
                     <div className="flex items-center gap-2">
                       <button 
@@ -1734,18 +1738,18 @@ ${cssContent}
                   </div>
 
                   {/* Preview Canvas */}
-                  <div className="flex-1 flex items-center justify-center p-8 relative" style={getPreviewBgStyle()}>
+                  <div className="relative flex items-center justify-center flex-1 p-8" style={getPreviewBgStyle()}>
                     {/* Loading State */}
                     {studioLoading && (
-                      <div className="absolute inset-0 bg-zinc-900/90 backdrop-blur-sm flex flex-col items-center justify-center z-10">
+                      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-zinc-900/90 backdrop-blur-sm">
                         <Loader2 />
-                        <p className="text-lg font-medium text-gray-300 mt-8">
+                        <p className="mt-8 text-lg font-medium text-gray-300">
                           {studioTab === 'css' ? 'Generating CSS Animation...' :
                            studioTab === 'svg' ? 'Creating SVG Animation...' :
                            studioTab === 'gif' ? 'Generating GIF...' :
                            'Creating Video...'}
                         </p>
-                        <p className="text-sm mt-2 text-gray-500">
+                        <p className="mt-2 text-sm text-gray-500">
                           {studioTab === 'gif' || studioTab === 'video' ? 'This may take a few moments' : 'AI is crafting your animation'}
                         </p>
                       </div>
@@ -1754,11 +1758,11 @@ ${cssContent}
                     {/* Error State */}
                     {studioError && (
                       <div className="text-center">
-                        <div className="text-red-400 mb-2">⚠️</div>
+                        <div className="mb-2 text-red-400">⚠️</div>
                         <p className="text-sm text-red-400">{studioError}</p>
                         <button 
                           onClick={generateAnimation}
-                          className="mt-4 px-4 py-2 text-xs bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded transition-colors"
+                          className="px-4 py-2 mt-4 text-xs text-red-400 transition-colors rounded bg-red-600/20 hover:bg-red-600/30"
                         >
                           Try Again
                         </button>
@@ -1771,14 +1775,13 @@ ${cssContent}
                         {studioTab === 'svg' && studioCode?.svg ? (
                           <div 
                             className="flex items-center justify-center"
-                            style={{ minWidth: '200px', minHeight: '200px' }}
+                            style={{ minWidth: '300px', minHeight: '300px' }}
                           >
                             <div 
                               className="svg-preview"
                               dangerouslySetInnerHTML={{ __html: studioCode.svg }} 
-                              style={{ maxWidth: '300px', maxHeight: '300px' }}
+                              style={{ width: '100%', maxWidth: '400px', maxHeight: '400px' }}
                             />
-                            {studioCode.css && <style>{studioCode.css}</style>}
                           </div>
                         ) : studioTab === 'css' && studioCode?.css ? (
                           <>
@@ -1794,7 +1797,7 @@ ${cssContent}
                               {studioTab === 'css' ? <Zap className="w-12 h-12 text-cyan-400/50" /> : <Palette className="w-12 h-12 text-green-400/50" />}
                             </div>
                             <p className="text-sm">Enter a prompt and click Generate</p>
-                            <p className="text-xs mt-2 text-gray-600">Your animation will appear here</p>
+                            <p className="mt-2 text-xs text-gray-600">Your animation will appear here</p>
                           </div>
                         )}
                       </div>
@@ -1805,14 +1808,14 @@ ${cssContent}
                       <div className="relative max-w-full max-h-full">
                         {studioMediaUrl ? (
                           studioTab === 'gif' ? (
-                            <img src={studioMediaUrl} alt="Generated GIF" className="max-w-full max-h-80 rounded-lg shadow-2xl" />
+                            <img src={studioMediaUrl} alt="Generated GIF" className="max-w-full rounded-lg shadow-2xl max-h-80" />
                           ) : (
                             <video 
                               src={studioMediaUrl} 
                               controls 
                               autoPlay 
                               loop 
-                              className="max-w-full max-h-80 rounded-lg shadow-2xl"
+                              className="max-w-full rounded-lg shadow-2xl max-h-80"
                             />
                           )
                         ) : (
@@ -1821,7 +1824,7 @@ ${cssContent}
                               {studioTab === 'gif' ? <Image className="w-12 h-12 text-pink-400/50" /> : <Video className="w-12 h-12 text-purple-400/50" />}
                             </div>
                             <p className="text-sm">Enter a prompt and click Generate</p>
-                            <p className="text-xs mt-2 text-gray-600">Your {studioTab === 'gif' ? 'GIF' : 'video'} will appear here</p>
+                            <p className="mt-2 text-xs text-gray-600">Your {studioTab === 'gif' ? 'GIF' : 'video'} will appear here</p>
                           </div>
                         )}
                       </div>
@@ -1829,7 +1832,7 @@ ${cssContent}
                   </div>
 
                   {/* Background Options */}
-                  <div className="px-4 py-2 border-t border-white/5 flex items-center gap-2">
+                  <div className="flex items-center gap-2 px-4 py-2 border-t border-white/5">
                     <span className="text-xs text-gray-500">Background:</span>
                     {(['Dark', 'Light', 'Grid', 'None'] as const).map((bg) => (
                       <button
@@ -1844,9 +1847,9 @@ ${cssContent}
                 </div>
 
                 {/* Right - Code Output Panel */}
-                <div className="w-80 bg-zinc-950/50 border-l border-white/5 flex flex-col">
+                <div className="flex flex-col border-l w-80 bg-zinc-950/50 border-white/5">
                   {/* Code Tabs */}
-                  <div className="px-4 py-2 border-b border-white/5 flex items-center gap-1">
+                  <div className="flex items-center gap-1 px-4 py-2 border-b border-white/5">
                     {studioTab === 'svg' ? (
                       <>
                         <button 
@@ -1884,16 +1887,16 @@ ${cssContent}
                         </button>
                       </>
                     ) : (
-                      <span className="text-xs text-gray-500 px-2">
+                      <span className="px-2 text-xs text-gray-500">
                         {studioTab === 'gif' ? 'GIF output will be displayed in preview' : 'Video output will be displayed in preview'}
                       </span>
                     )}
                   </div>
 
                   {/* Code Display */}
-                  <div className="flex-1 overflow-auto p-4">
+                  <div className="flex-1 p-4 overflow-auto">
                     {(studioTab === 'css' || studioTab === 'svg') ? (
-                      <pre className="text-xs font-mono text-gray-300 leading-relaxed whitespace-pre-wrap">
+                      <pre className="font-mono text-xs leading-relaxed text-gray-300 whitespace-pre-wrap">
                         <code>
                           {studioCode ? (
                             studioCodeTab === 'svg' ? studioCode.svg :
@@ -1921,18 +1924,18 @@ ${studioTab === 'css' ? `.animated-element {
                         </code>
                       </pre>
                     ) : (
-                      <div className="text-center text-gray-500 py-8">
+                      <div className="py-8 text-center text-gray-500">
                         <div className="flex justify-center mb-4">
                           {studioTab === 'gif' ? <Image className="w-8 h-8 text-pink-400/50" /> : <Video className="w-8 h-8 text-purple-400/50" />}
                         </div>
                         <p className="text-xs">
                           {studioTab === 'gif' ? 'GIF files are visual outputs' : 'Video files are visual outputs'}
                         </p>
-                        <p className="text-xs mt-2 text-gray-600">
+                        <p className="mt-2 text-xs text-gray-600">
                           Use the Export button to download
                         </p>
                         {studioMediaUrl && (
-                          <p className="text-xs mt-4 text-green-400">✓ Ready to export</p>
+                          <p className="mt-4 text-xs text-green-400">✓ Ready to export</p>
                         )}
                       </div>
                     )}
@@ -1943,7 +1946,7 @@ ${studioTab === 'css' ? `.animated-element {
                     <button 
                       onClick={copyStudioCode}
                       disabled={!studioCode || (studioTab !== 'css' && studioTab !== 'svg')}
-                      className="w-full py-2 text-xs font-medium bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-900 disabled:text-gray-600 disabled:cursor-not-allowed text-gray-300 rounded-lg transition-colors flex items-center justify-center gap-2"
+                      className="flex items-center justify-center w-full gap-2 py-2 text-xs font-medium text-gray-300 transition-colors rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-900 disabled:text-gray-600 disabled:cursor-not-allowed"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -1956,11 +1959,11 @@ ${studioTab === 'css' ? `.animated-element {
 
               {/* Auth Gate Blur Overlay for Animation Studio */}
               {mounted && !user && (
-                <div className="absolute inset-0 z-40 backdrop-blur-md bg-zinc-900/60 flex flex-col items-center justify-center rounded-xl">
-                  <div className="text-center space-y-6 px-8">
+                <div className="absolute inset-0 z-40 flex flex-col items-center justify-center backdrop-blur-md bg-zinc-900/60 rounded-xl">
+                  <div className="px-8 space-y-6 text-center">
                     <div className="space-y-2">
                       <h3 className="text-2xl font-bold text-white">Unlock Animation Studio</h3>
-                      <p className="text-gray-400 max-w-md">Sign in or create an account to create CSS, SVG, GIF, and Video animations</p>
+                      <p className="max-w-md text-gray-400">Sign in or create an account to create CSS, SVG, GIF, and Video animations</p>
                     </div>
                     <div className="flex items-center justify-center gap-4">
                       <BlurButton variant="pink" onClick={() => openAuthGate('pink')}>Sign In</BlurButton>
@@ -1971,7 +1974,7 @@ ${studioTab === 'css' ? `.animated-element {
               )}
 
               {/* Bottom Status Bar */}
-              <div className="bg-zinc-950/90 border-t border-white/5 px-4 py-2 flex items-center justify-between">
+              <div className="flex items-center justify-between px-4 py-2 border-t bg-zinc-950/90 border-white/5">
                 <div className="flex items-center gap-4">
                   <span className="text-xs text-gray-500">
                     {studioTab === 'css' ? 'CSS Animation' : studioTab === 'svg' ? 'SVG Animation' : studioTab === 'gif' ? 'GIF Generation' : 'Video Generation'}
@@ -2006,7 +2009,7 @@ ${studioTab === 'css' ? `.animated-element {
                   <div className="flex justify-center mb-2">
                     <feature.Icon className={`w-6 h-6 ${feature.color}`} />
                   </div>
-                  <h4 className="text-sm font-semibold text-white mb-1">{feature.title}</h4>
+                  <h4 className="mb-1 text-sm font-semibold text-white">{feature.title}</h4>
                   <p className="text-xs text-gray-500">{feature.desc}</p>
                 </div>
               ))}
@@ -2017,20 +2020,20 @@ ${studioTab === 'css' ? `.animated-element {
       </section>
 
       {/* ========== SECTION 5: CONCLUSION ========== */}
-      <section ref={conclusionSectionRef} className="relative min-h-screen bg-black pt-24 pb-0 overflow-hidden">
+      <section ref={conclusionSectionRef} className="relative min-h-screen pt-24 pb-0 overflow-hidden bg-black">
         {/* Top Gradient Transition - pure black blend */}
-        <div className="absolute inset-x-0 top-0 h-40 bg-black pointer-events-none z-10" />
+        <div className="absolute inset-x-0 top-0 z-10 h-40 bg-black pointer-events-none" />
 
         {/* Main Content - Flex layout for side by side */}
-        <div className="relative z-20 min-h-screen flex items-center">
+        <div className="relative z-20 flex items-center min-h-screen">
           {/* Left Side - Text Content (takes 50% on large screens) */}
-          <div className="w-full lg:w-1/2 px-8 md:px-16 lg:px-20 py-20 relative z-30">
+          <div className="relative z-30 w-full px-8 py-20 lg:w-1/2 md:px-16 lg:px-20">
             {/* Main Headline */}
             <div className="mb-6">
               <SplitText
                 text="Empower Creativity"
                 tag="h2"
-                className="text-4xl md:text-5xl lg:text-6xl font-bold text-white"
+                className="text-4xl font-bold text-white md:text-5xl lg:text-6xl"
                 splitType="chars"
                 delay={40}
                 duration={0.6}
@@ -2039,8 +2042,8 @@ ${studioTab === 'css' ? `.animated-element {
                 to={{ opacity: 1, y: 0 }}
                 textAlign="left"
               />
-              <div className="flex items-baseline gap-3 mt-2 flex-wrap">
-                <span className="text-4xl md:text-5xl lg:text-6xl font-bold text-white">to</span>
+              <div className="flex flex-wrap items-baseline gap-3 mt-2">
+                <span className="text-4xl font-bold text-white md:text-5xl lg:text-6xl">to</span>
                 <RotatingText
                   texts={['Sketch','Generate','Animate', 'Export', 'Share', 'Love']}
                   mainClassName="inline-flex px-4 py-2 bg-linear-to-r from-zinc-800 via-yellow-200 to-zinc-800 text-zinc-900 rounded-lg overflow-hidden text-4xl md:text-5xl lg:text-6xl font-bold"
@@ -2050,7 +2053,7 @@ ${studioTab === 'css' ? `.animated-element {
 
             {/* Subtitle with ShinyText */}
             <ScrollReveal variant="fadeUp" delay={0.3} duration={0.8}>
-            <div className="text-base md:text-lg mb-6 max-w-lg leading-relaxed">
+            <div className="max-w-lg mb-6 text-base leading-relaxed md:text-lg">
               <ShinyText 
                 text="Sketchoflow transforms your rough sketches into polished animations. Generate CSS, SVG, GIF, and video animations with AI — no design experience needed. Your imagination is the only limit."
                 speed={3}
@@ -2061,7 +2064,7 @@ ${studioTab === 'css' ? `.animated-element {
 
             {/* Feature Points with Lucide Icons */}
             <ScrollReveal variant="fadeUp" delay={0.5} duration={0.8}>
-            <div className="grid grid-cols-2 gap-3 mb-6 max-w-md">
+            <div className="grid max-w-md grid-cols-2 gap-3 mb-6">
               {[
                 { icon: Pencil, text: 'Sketch to Animation', color: 'text-violet-400' },
                 { icon: Bot, text: 'AI-Powered Generation', color: 'text-cyan-400' },
@@ -2090,7 +2093,7 @@ ${studioTab === 'css' ? `.animated-element {
             {/* Trust Badge */}
             <ScrollReveal variant="fadeUp" delay={0.4} duration={0.6}>
             <p className="text-sm text-gray-500">
-              Join <span className="text-white font-medium">10,000+</span> creators already using Sketchoflow
+              Join <span className="font-medium text-white">10,000+</span> creators already using Sketchoflow
             </p>
             </ScrollReveal>
           </div>
@@ -2115,38 +2118,38 @@ ${studioTab === 'css' ? `.animated-element {
         </div>
 
         {/* Bottom Fade */}
-        <div className="absolute inset-x-0 bottom-0 h-32 bg-linear-to-t from-black to-transparent pointer-events-none z-25" />
+        <div className="absolute inset-x-0 bottom-0 h-32 pointer-events-none bg-linear-to-t from-black to-transparent z-25" />
       </section>
 
       {/* ========== FOOTER ========== */}
-      <footer className="relative bg-black pt-20 pb-10">
+      <footer className="relative pt-20 pb-10 bg-black">
         {/* Top border glow */}
         <div className="absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-violet-500/50 to-transparent" />
         
-        <div className="max-w-7xl mx-auto px-8 md:px-16 lg:px-20">
+        <div className="px-8 mx-auto max-w-7xl md:px-16 lg:px-20">
           {/* Footer Grid */}
           <ScrollReveal variant="fadeUp" delay={0.1} duration={0.6}>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-16">
+          <div className="grid grid-cols-2 gap-10 mb-16 md:grid-cols-4">
             {/* Brand Column */}
             <div className="col-span-2 md:col-span-1">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-linear-to-br from-violet-600 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/25">
+                <div className="flex items-center justify-center w-10 h-10 shadow-lg rounded-xl bg-linear-to-br from-violet-600 to-purple-600 shadow-purple-500/25">
                   <Sparkles className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-xl font-bold text-white">SketchoFlow</span>
               </div>
-              <p className="text-sm text-gray-500 leading-relaxed">
+              <p className="text-sm leading-relaxed text-gray-500">
                 Transform your creative ideas into stunning animations with the power of AI.
               </p>
             </div>
 
             {/* Product Column */}
             <div>
-              <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">Product</h4>
+              <h4 className="mb-4 text-sm font-semibold tracking-wider text-white uppercase">Product</h4>
               <ul className="space-y-3">
                 {['Features', 'Pricing', 'Templates', 'Integrations'].map((item) => (
                   <li key={item}>
-                    <a href="#" className="text-sm text-gray-500 hover:text-white transition-colors">{item}</a>
+                    <a href="#" className="text-sm text-gray-500 transition-colors hover:text-white">{item}</a>
                   </li>
                 ))}
               </ul>
@@ -2154,11 +2157,11 @@ ${studioTab === 'css' ? `.animated-element {
 
             {/* Resources Column */}
             <div>
-              <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">Resources</h4>
+              <h4 className="mb-4 text-sm font-semibold tracking-wider text-white uppercase">Resources</h4>
               <ul className="space-y-3">
                 {['Documentation', 'Tutorials', 'Blog', 'Community'].map((item) => (
                   <li key={item}>
-                    <a href="#" className="text-sm text-gray-500 hover:text-white transition-colors">{item}</a>
+                    <a href="#" className="text-sm text-gray-500 transition-colors hover:text-white">{item}</a>
                   </li>
                 ))}
               </ul>
@@ -2166,11 +2169,11 @@ ${studioTab === 'css' ? `.animated-element {
 
             {/* Company Column */}
             <div>
-              <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">Company</h4>
+              <h4 className="mb-4 text-sm font-semibold tracking-wider text-white uppercase">Company</h4>
               <ul className="space-y-3">
                 {['About', 'Careers', 'Contact', 'Privacy'].map((item) => (
                   <li key={item}>
-                    <a href="#" className="text-sm text-gray-500 hover:text-white transition-colors">{item}</a>
+                    <a href="#" className="text-sm text-gray-500 transition-colors hover:text-white">{item}</a>
                   </li>
                 ))}
               </ul>
@@ -2180,7 +2183,7 @@ ${studioTab === 'css' ? `.animated-element {
 
           {/* Bottom Bar */}
           <ScrollReveal variant="fadeUp" delay={0.2} duration={0.6}>
-          <div className="flex flex-col md:flex-row items-center justify-between pt-8 border-t border-white/10">
+          <div className="flex flex-col items-center justify-between pt-8 border-t md:flex-row border-white/10">
             <p className="text-sm text-gray-600">
               © 2025 SketchoFlow. All rights reserved.
             </p>
