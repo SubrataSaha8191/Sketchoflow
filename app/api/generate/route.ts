@@ -127,10 +127,15 @@ export async function POST(req: Request) {
       let systemPrompt = "";
       
       if (mode === "sketch") {
-        systemPrompt = `You are an AI that transforms sketches into detailed image descriptions.
-                        Analyze this sketch and create a detailed prompt that would generate a fully rendered, 
-                        professional version of this sketch. Consider: ${prompt || "making it photorealistic and detailed"}.
-                        Return ONLY the image generation prompt, nothing else. Be very detailed about colors, lighting, style, and composition.`;
+        systemPrompt = `You are an AI that transforms sketches into detailed image generation prompts.
+                        Analyze the sketch and infer the most likely scene, objects, and composition. If the user did
+                        not provide a text prompt, infer a high-quality photorealistic or stylized scene that best
+                        matches the sketch. Return ONLY the image generation prompt, nothing else. Be very detailed
+                        about colors, lighting, materials, objects, and composition.`;
+        // If the user provided an explicit sketch prompt, include it for context
+        if (prompt) {
+          systemPrompt += ` Also consider the user prompt: ${prompt}`;
+        }
       } else if (mode === "transform") {
         systemPrompt = `You are an AI that creates image transformation prompts.
                         Analyze this image and create a detailed prompt that would generate a transformed version

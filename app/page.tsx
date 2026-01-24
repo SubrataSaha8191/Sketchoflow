@@ -2,12 +2,13 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Upload, Sparkles, Wand2, ImagePlus, Loader2 as Loader2Icon, Pencil, Bot, Zap, Play, Palette, Image, Video, RefreshCw, Maximize2, Minimize2 } from "lucide-react";
+import { Upload, Sparkles, Wand2, ImagePlus, Loader2 as Loader2Icon, Pencil, Bot, Zap, Play, Palette, Image, Video, RefreshCw, Maximize2, Minimize2, Shield } from "lucide-react";
+import dynamic from 'next/dynamic';
 import LaserFlow from "@/components/LaserFlow";
 import LightRays from "@/components/LightRays";
-import GenerateButton from "@/components/GenerateButton";
+const GenerateButton = dynamic(() => import('@/components/GenerateButton'), { ssr: false });
 import JoinToday from "@/components/JoinToday";
-import AuthButtons from "@/components/AuthButtons";
+const AuthButtons = dynamic(() => import('@/components/AuthButtons'), { ssr: false });
 import ThemedLogo from "@/components/ThemedLogo";
 import ShinyText from "@/components/ShinyText";
 import TextType from "@/components/TextType";
@@ -21,23 +22,26 @@ import { useAuthGate } from "@/context/AuthGateContext";
 import { useAuth } from "@/context/AuthContext";
 import TryAnimationStudio from "@/components/TryAnimationStudio";
 import SketchCanvas, { SketchCanvasRef } from "@/components/SketchCanvas";
-import AuthPopup from "@/components/AuthPopup";
+const AuthPopup = dynamic(() => import('@/components/AuthPopup'), { ssr: false });
 import Loader from "@/components/Loader";
 import Loader2 from "@/components/loader-2";
 import { SplineScene } from "@/components/ui/splite";
 import RotatingText from "@/components/RotatingText";
 import SocialButtons from "@/components/SocialButtons";
-import StartFree from "@/components/StartFree";
+const StartFree = dynamic(() => import('@/components/StartFree'), { ssr: false });
 import SplitText from "@/components/SplitText";
+import { useRouter } from 'next/navigation';
 import ScrollReveal from "@/components/ScrollReveal";
 import Explore from "@/components/Explore";
 import ScrollProgress from "@/components/Scrollbar";
-import BlurButton from "@/components/BlurButtons";
+const BlurButton = dynamic(() => import('@/components/BlurButtons'), { ssr: false });
 import PromptInput from "@/components/PromptInput";
 import ActivityHistory, { HistoryButton, saveActivity } from "@/components/ActivityHistory";
 import Gallery, { GalleryButton, saveToGallery } from "@/components/Gallery";
+import ResultModal from "@/components/ResultModal";
 
 export default function Home() {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -66,9 +70,9 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sketchCanvasRef = useRef<SketchCanvasRef>(null);
   
-  // Disable body scroll when any workspace is in fullscreen mode
+  // Disable body scroll when any workspace is in fullscreen mode or when result modal is open
   useEffect(() => {
-    if (isWorkspaceFullscreen || isStudioFullscreen) {
+    if (isWorkspaceFullscreen || isStudioFullscreen || isImageZoomed) {
       document.body.style.overflow = 'hidden';
       document.body.style.position = 'fixed';
       document.body.style.width = '100%';
@@ -88,7 +92,7 @@ export default function Home() {
       document.body.style.height = '';
       document.documentElement.style.overflow = '';
     };
-  }, [isWorkspaceFullscreen, isStudioFullscreen]);
+  }, [isWorkspaceFullscreen, isStudioFullscreen, isImageZoomed]);
   
   // Animation Studio State
   const [studioTab, setStudioTab] = useState<'css' | 'svg' | 'gif' | 'video'>('css');
@@ -113,6 +117,11 @@ export default function Home() {
   const { setButtonTheme, buttonTheme } = useTheme();
   const { incrementAction, requireAuth, openAuthGate } = useAuthGate();
   const { user } = useAuth();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Theme colors for nav links
   const navColorThemes: Record<ColorTheme, { text: string; hover: string; glow: string }> = {
@@ -583,11 +592,20 @@ export default function Home() {
 
             {/* Right Sidebar */}
             <div className="w-64 bg-zinc-900/80 border-l border-white/5 p-4 space-y-4 overflow-y-auto shrink-0">
-              <h3 className="text-xs font-semibold text-gray-400 uppercase">Result</h3>
+              <h3 className="text-xs font-semibold text-gray-400 uppercase">Result Preview</h3>
               {(activeMode === 'generate' && generatedImage) || (activeMode === 'sketch' && renderedSketchImage) || (activeMode === 'upload' && transformedImage) ? (
-                <img src={activeMode === 'generate' ? generatedImage! : activeMode === 'sketch' ? renderedSketchImage! : transformedImage!} alt="Result" className="w-full rounded-lg cursor-pointer" onClick={() => setIsImageZoomed(true)} />
+                <div className="group relative rounded-lg overflow-hidden border border-white/10 hover:border-white/30 transition-all cursor-pointer bg-black/30" onClick={() => setIsImageZoomed(true)}>
+                  <img 
+                    src={activeMode === 'generate' ? generatedImage! : activeMode === 'sketch' ? renderedSketchImage! : transformedImage!} 
+                    alt="Result preview" 
+                    className="w-full aspect-square object-cover group-hover:opacity-75 transition-opacity"
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="text-white text-sm font-medium">View Full Size</span>
+                  </div>
+                </div>
               ) : (
-                <div className="text-xs text-gray-500 text-center py-8">No result yet</div>
+                <div className="text-xs text-gray-500 text-center py-12 border border-dashed border-white/10 rounded-lg">No result yet</div>
               )}
             </div>
           </div>
@@ -711,14 +729,14 @@ export default function Home() {
           {/* Center Navigation Links */}
           <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-6">
             <button
-              onClick={() => workspaceSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
+              onClick={() => router.push('/workspace')}
               className={`text-sm font-medium transition-all duration-300 ${navColorThemes[buttonTheme].text} ${navColorThemes[buttonTheme].hover} ${navColorThemes[buttonTheme].glow}`}
             >
               AI Workspace
             </button>
             <span className="text-white/20">|</span>
             <button
-              onClick={() => studioSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
+              onClick={() => router.push('/studio')}
               className={`text-sm font-medium transition-all duration-300 ${navColorThemes[buttonTheme].text} ${navColorThemes[buttonTheme].hover} ${navColorThemes[buttonTheme].glow}`}
             >
               Animation Studio
@@ -773,7 +791,7 @@ export default function Home() {
         {/* Content Container */}
         <div className="relative z-10">
           {/* Top Section - Hero Text Left Aligned */}
-          <div className="px-6 md:px-12 lg:px-20 pt-32 md:pt-40 pb-8 md:pb-12">
+          <div className="px-6 md:px-12 lg:px-20 pt-32 md:pt-30 pb-8 md:pb-12">
             <div className="max-w-xl text-left">
               {/* Main Heading with TypeText effect on full heading */}
               <ScrollReveal variant="fadeUp" delay={0.1} duration={1}>
@@ -832,34 +850,20 @@ export default function Home() {
                 onToggleMode={() => {}}
               />
 
-              {/* Zoomed Image Modal */}
+              {/* Result Modal */}
               {(() => {
                 const currentImage = activeMode === 'generate' ? generatedImage : 
                                      activeMode === 'sketch' ? renderedSketchImage : 
                                      transformedImage;
-                return isImageZoomed && currentImage && (
-                  <div 
-                    className="fixed inset-0 z-100 bg-black/90 backdrop-blur-sm flex items-center justify-center p-8"
-                    onClick={() => setIsImageZoomed(false)}
-                  >
-                    <div className="relative max-w-4xl max-h-[90vh] w-full">
-                      <button
-                        onClick={() => setIsImageZoomed(false)}
-                        className="absolute -top-12 right-0 text-white/70 hover:text-white transition-colors text-sm flex items-center gap-2"
-                      >
-                        <span>Press ESC or click anywhere to close</span>
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                      <img 
-                        src={currentImage} 
-                        alt="Generated image - zoomed"
-                        className="w-full h-full object-contain rounded-lg shadow-2xl"
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
-                  </div>
+                const altText = activeMode === 'sketch' ? 'Rendered sketch' : 
+                                activeMode === 'generate' ? 'Generated image' : 'Transformed image';
+                return (
+                  <ResultModal 
+                    isOpen={isImageZoomed} 
+                    image={currentImage}
+                    onClose={() => setIsImageZoomed(false)}
+                    alt={altText}
+                  />
                 );
               })()}
             </div>
@@ -1162,10 +1166,10 @@ export default function Home() {
                           </h3>
                           <div className="space-y-2">
                             {((activeMode === 'generate' && generatedImage) || (activeMode === 'sketch' && renderedSketchImage) || (activeMode === 'upload' && transformedImage)) ? (
-                              <div onClick={() => setIsImageZoomed(true)} className="relative group cursor-pointer rounded-xl overflow-hidden border border-white/10 hover:border-purple-500/50 transition-all">
-                                <img src={activeMode === 'generate' ? generatedImage! : activeMode === 'sketch' ? renderedSketchImage! : transformedImage!} alt={activeMode === 'sketch' ? 'Rendered sketch' : activeMode === 'generate' ? 'Generated image' : 'Transformed image'} className="w-full h-32 object-cover" />
+                              <div onClick={() => setIsImageZoomed(true)} className="relative group cursor-pointer rounded-xl overflow-hidden border border-white/10 hover:border-purple-500/50 transition-all bg-black/30">
+                                <img src={activeMode === 'generate' ? generatedImage! : activeMode === 'sketch' ? renderedSketchImage! : transformedImage!} alt={activeMode === 'sketch' ? 'Rendered sketch' : activeMode === 'generate' ? 'Generated image' : 'Transformed image'} className="w-full h-32 object-cover group-hover:opacity-75 transition-opacity" />
                                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                  <span className="text-white text-xs font-medium">Click to zoom</span>
+                                  <span className="text-white text-xs font-medium">View Full Size</span>
                                 </div>
                               </div>
                             ) : (
@@ -1951,7 +1955,7 @@ ${studioTab === 'css' ? `.animated-element {
               </div>
 
               {/* Auth Gate Blur Overlay for Animation Studio */}
-              {!user && (
+              {mounted && !user && (
                 <div className="absolute inset-0 z-40 backdrop-blur-md bg-zinc-900/60 flex flex-col items-center justify-center rounded-xl">
                   <div className="text-center space-y-6 px-8">
                     <div className="space-y-2">
@@ -1982,7 +1986,7 @@ ${studioTab === 'css' ? `.animated-element {
                     {studioCode ? `Output: ${((studioCode.css || studioCode.svg || '').length / 1024).toFixed(1)} KB` : studioMediaUrl ? 'Media ready' : 'No output'}
                   </span>
                   <span className="text-xs text-gray-500">
-                    {studioTab === 'css' || studioTab === 'svg' ? 'Powered by Groq' : 'Powered by Runway'}
+                    {studioTab === 'css' || studioTab === 'svg' ? 'Powered by Groq' : ''}
                   </span>
                 </div>
               </div>
@@ -2039,7 +2043,7 @@ ${studioTab === 'css' ? `.animated-element {
                 <span className="text-4xl md:text-5xl lg:text-6xl font-bold text-white">to</span>
                 <RotatingText
                   texts={['Sketch','Generate','Animate', 'Export', 'Share', 'Love']}
-                  mainClassName="inline-flex px-4 py-2 bg-gradient-to-r from-zinc-800 via-yellow-200 to-zinc-800 text-zinc-900 rounded-lg overflow-hidden text-4xl md:text-5xl lg:text-6xl font-bold"
+                  mainClassName="inline-flex px-4 py-2 bg-linear-to-r from-zinc-800 via-yellow-200 to-zinc-800 text-zinc-900 rounded-lg overflow-hidden text-4xl md:text-5xl lg:text-6xl font-bold"
                 />
               </div>
             </div>

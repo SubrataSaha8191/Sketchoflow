@@ -12,7 +12,14 @@ const ScrollProgress = () => {
     const handleScroll = () => {
       const scrollTop = window.scrollY;
       const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-      const progress = (scrollTop / docHeight) * 100;
+      // Avoid division by zero when content height equals viewport height
+      let progress = 0;
+      if (docHeight > 0) {
+        progress = (scrollTop / docHeight) * 100;
+        if (!Number.isFinite(progress) || Number.isNaN(progress)) progress = 0;
+      }
+      // Clamp progress between 0 and 100
+      progress = Math.max(0, Math.min(100, progress));
       setScrollProgress(progress);
       setIsVisible(scrollTop > 300);
     };

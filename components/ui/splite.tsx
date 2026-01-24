@@ -46,7 +46,7 @@ export const SplineScene = forwardRef<SplineSceneRef, SplineSceneProps>(
           </div>
         }
       >
-        <div style={{ ...style, imageRendering: 'high-quality' }} className={className}>
+        <div style={{ ...style, imageRendering: 'auto' }} className={className}>
           <Spline
             scene={scene}
             className="w-full h-full"
